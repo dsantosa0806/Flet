@@ -1,0 +1,17 @@
+
+🧭 Navegador iniciado em modo headless
+📄 Tela inicial carregada.
+📁 Pasta criada: C:\Users\Daniel\Downloads\Relatórios 2025-06-17 20h57m
+📄 Financeiro baixado: S013250314
+📄 Financeiro baixado: S013654622
+📄 Financeiro baixado: S013658261
+✅ Todos os relatórios foram processados.
+🧼 Navegador encerrado.
+
+
+🧭 Navegador iniciado em modo headless
+📄 Tela inicial carregada.
+📁 Pasta criada: C:\Users\Daniel\Downloads\Relatórios 2025-06-17 20h58m
+📄 Financeiro baixado: S013658261
+✅ Todos os relatórios foram processados.
+🧼 Navegador encerrado.
