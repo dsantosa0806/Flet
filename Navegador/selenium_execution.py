@@ -1,141 +1,170 @@
-import sys
-import time
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import NoSuchElementException
-import re
-from selenium.webdriver.common.keys import Keys
-from create_dir.diretorios import verify_downloads
+import requests
+from selenium import webdriver
+import config
+import os
+import json
+
+caminho_padrao = config.caminho_padrao
 
 
-# Oh Lord, forgive me for what I'm about to Code !
+def store_cookies(navegador, directory="C:\\Cookies-Selenium"):
+    # Verifica se o diretório existe, caso contrário, cria
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+
+    # Define o caminho para salvar os cookies
+    cookies_file = os.path.join(directory, "cookies.json")
+
+    try:
+        # Salva os cookies no arquivo JSON
+        cookies = navegador.get_cookies()
+        with open(cookies_file, "w") as file:
+            json.dump(cookies, file, indent=4)
+
+        print(f"Cookies salvos em: {cookies_file}")
+    except Exception as e:
+        print(f"Erro ao salvar cookies: {e}")
+
+
+def load_cookies(navegador, s, directory="C:\\Cookies-Selenium"):
+    # Define o caminho para carregar os cookies
+    cookies_file = os.path.join(directory, "cookies.json")
+
+    if os.path.exists(cookies_file):
+        try:
+            with open(cookies_file, "r") as file:
+                cookies = json.load(file)
+                for cookie in cookies:
+                    navegador.add_cookie(cookie)
+
+                    # Inicia aqui
+                    s.cookies.set(cookie["name"], cookie["value"])
+
+            print("Cookies carregados com sucesso!")
+        except Exception as e:
+            print(f"Erro ao carregar cookies: {e}")
+    else:
+        print("Arquivo de cookies não encontrado.")
+
+
+def option_navegador(headless=True):
+    options = webdriver.ChromeOptions()
+    options.add_argument("enable-automation")
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-extensions")
+    options.add_argument("--dns-prefetch-disable")
+    options.add_argument("--disable-gpu")
+    options.add_argument("--disable-infobars")
+    options.add_argument("--disable-blink-features=AutomationControlled")
+    options.add_argument("--use_subprocess")
+
+    if headless:
+        options.add_argument("--headless=new")
+
+    options.add_experimental_option('prefs', {
+        "download.default_directory": config.caminho_padrao,
+        "download.prompt_for_download": False,
+        "download.directory_upgrade": True,
+        "plugins.always_open_pdf_externally": True
+    })
+    return options
+
+
 def acessa_sior(navegador):
     try:
-        # Acesso a tela de login
-        url_login = 'http://servicos.dnit.gov.br/sior/Account/Login/?ReturnUrl=%2Fsior%2F'
-        navegador.get(url_login)
-    except:
-        print('Erro', 'O SIOR apresentou instabilidade, '
-                      'por favor reinicie a aplicação e tente novamente T:acessa_sior ')
-        sys.exit()
+        navegador.get('http://servicos.dnit.gov.br/sior/Account/Login/?ReturnUrl=%2Fsior%2F')
+    except Exception as e:
+        print(f'Erro ao acessar SIOR: {e}')
+        raise RuntimeError("Falha ao acessar SIOR")
 
 
 def login(navegador):
     path_btn_entrar_gov = '//*[@id="placeholder"]/div[1]/div/div/div/div/div/div/form/div[2]/button'
     qr_code_path = '//*[@id="login-cpf"]/div[5]/a'
     logado = '//*[@id="center-pane"]/div/div/div[1]/div[2]'
-
     try:
-        WebDriverWait(navegador, 120).until(
-            EC.presence_of_element_located(
-                (By.XPATH, path_btn_entrar_gov))).click()
-        WebDriverWait(navegador, 120).until(
-            EC.presence_of_element_located(
-                (By.XPATH, qr_code_path))).click()
-        WebDriverWait(navegador, 120).until(
-            EC.presence_of_element_located(
-                (By.XPATH, logado))).is_displayed()
-    except:
+        WebDriverWait(navegador, 120).until(EC.presence_of_element_located((By.XPATH, path_btn_entrar_gov))).click()
+        WebDriverWait(navegador, 120).until(EC.presence_of_element_located((By.XPATH, qr_code_path))).click()
+        WebDriverWait(navegador, 120).until(EC.presence_of_element_located((By.XPATH, logado))).is_displayed()
+    except Exception as e:
+        print(f"Erro no login manual: {e}")
         return 1
 
 
 def elemento_existe(navegador, by, value):
     try:
         elemento = navegador.find_element(by, value)
-        if elemento.is_displayed():
-            return True
+        return elemento.is_displayed()
     except NoSuchElementException:
         return False
-    return False
 
 
 def acessa_tela_incial_auto(navegador):
-    # Acessa a tela da notificação da autuação
-    url_base = 'https://servicos.dnit.gov.br/sior/Infracao/ConsultaAutoInfracao/?SituacoesInfracaoSelecionadas=0'
     try:
-        navegador.get(url_base)
-    except:
+        navegador.get('https://servicos.dnit.gov.br/sior/Infracao/ConsultaAutoInfracao/?SituacoesInfracaoSelecionadas=0')
+    except Exception as e:
+        print(f"Erro ao acessar tela inicial: {e}")
         return 1
 
 
-def download_relatorio_financeiro(navegador, ait):
-    path_id_relatorio_financeiro = 'btnExportarRelatorioFinanceiro'
-    path_menu_relat = '//*[@id="menu_relatorio"]/li/span'
+def iniciar_sessao_sior(log=None):
+    def log_print(msg):
+        print(msg)
+        if log:
+            log.value += f"\n{msg}"
 
     try:
-        WebDriverWait(navegador, 15).until(
-            EC.element_to_be_clickable((By.XPATH, path_menu_relat))).click()
-    except:
-        print('Erro - ao clicar no menu relatório')
-        return 1
+        # 1. Primeiro tenta abrir em modo headless
+        navegador = webdriver.Chrome(options=option_navegador(headless=True))
+        log_print("🧭 Navegador iniciado em modo headless")
+        navegador.get("https://servicos.dnit.gov.br/sior/Account/Login/?ReturnUrl=%2Fsior%2F")
 
-    # CLIQUE PARA BAIXAR RELATÓRIO RESUMIDO
-    try:
-        WebDriverWait(navegador, 15).until(
-            EC.element_to_be_clickable(
-                (By.ID, path_id_relatorio_financeiro))).click()
-        while True:
-            janelas = navegador.window_handles
-            if len(janelas) == 1:
-                navegador.switch_to.window(janelas[0])
-                break
-    except:
-        print('Erro - ao clicar em baixar e aguardar janela relatório')
-        return 1
+        # Cria a sessão requests
+        s = requests.Session()
+        user_agent = navegador.execute_script("return navigator.userAgent;")
+        s.headers.update({'User-Agent': user_agent})
+        s.headers.update({"origin": "https://servicos.dnit.gov.br"})
+        s.headers.update({"host": "servicos.dnit.gov.br"})
 
+        # Tenta carregar cookies e verificar se já está logado
+        load_cookies(navegador, s)
+        navegador.refresh()
+        acessa_sior(navegador)
 
-def download_relatorio(navegador, auto):
-    for ait in auto:
+        if not elemento_existe(navegador, By.XPATH, '//*[@id="center-pane"]/div/div/div[1]/div[2]'):
+            log_print("🔐 Login manual necessário. Abrindo navegador visível...")
+            navegador.quit()
+
+            # 2. Abre navegador visível (sem headless)
+            navegador = webdriver.Chrome(options=option_navegador(headless=False))
+            navegador.get("https://servicos.dnit.gov.br/sior/Account/Login/?ReturnUrl=%2Fsior%2F")
+            acessa_sior(navegador)
+            login(navegador)
+
+            log_print("⏳ Aguarde 10 segundos para realizar o login manual...")
+            import time
+            time.sleep(10)
+
+            # Após login manual, salva cookies e reinicia em headless
+            store_cookies(navegador)
+            navegador.quit()
+            log_print("🔁 Reiniciando navegador em modo headless com cookies salvos...")
+
+            navegador = webdriver.Chrome(options=option_navegador(headless=True))
+            navegador.get("https://servicos.dnit.gov.br/sior/Account/Login/?ReturnUrl=%2Fsior%2F")
+            load_cookies(navegador, s)
+            navegador.refresh()
+
         acessa_tela_incial_auto(navegador)
-        input_ait = ait
-        path_auto = '//*[@id="NumeroAuto"]'
-        path_btn_closefilter = '//*[@id="SituacoesInfracaoSelecionadas_taglist"]/div/span[2]/span'
-        path_btn_consultar = '//*[@id="placeholder"]/div[1]/div/div[1]/button'
-        path_details = '//*[@id="gridInfracao"]/table/tbody/tr/td[1]/a'
-        path_auto_empty = '//*[@id="gridInfracao"]/div[1]'
+        log_print("📄 Tela inicial carregada.")
+        return navegador, s
 
-        try:
-            WebDriverWait(navegador, 30).until(
-                EC.element_to_be_clickable((By.XPATH, path_auto))).clear()
-        except:
-            print('Erro - ao limpar campo AIT')
-            return 1
-
-        # INPUT AIT
-        try:
-            WebDriverWait(navegador, 15).until(
-                EC.element_to_be_clickable((By.XPATH, path_auto))).send_keys(input_ait)
-        except:
-            print('Erro - Input AIT')
-            return 1
-
-        # REALIZA A CONSULTA
-        try:
-            WebDriverWait(navegador, 15).until(
-                EC.element_to_be_clickable((By.XPATH, path_btn_consultar))).click()
-        except:
-            print('Erro - ao realizar a consulta')
-            return 1
-
-        # detalhes
-        try:
-            WebDriverWait(navegador, 15).until(
-                EC.element_to_be_clickable((By.XPATH, path_details))).click()
-
-        except:
-            print('Erro - clicar em details do AIT')
-            return 1
-
-        if download_relatorio_financeiro(navegador, ait) == 1:
-            print(f'Erro ao baixar o Auto {ait}')
-            continue
-        time.sleep(3)
-        if acessa_tela_incial_auto(navegador) == 1:
-            print(f'Erro ao tentar acessar a tela inicial do auto no fim do loop')
-            continue
-        time.sleep(3)
-    verify_downloads(len(auto))
-
-
-
+    except Exception as e:
+        print(f"Erro ao acessar navegador: {e}")
+        if log:
+            log.value += f"\n❌ Erro ao iniciar sessão: {e}"
+        return None, None
