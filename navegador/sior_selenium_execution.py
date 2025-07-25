@@ -120,7 +120,7 @@ def iniciar_sessao_sior(log=None):
     try:
         # 1. Primeiro tenta abrir em modo headless
         navegador = webdriver.Chrome(options=option_navegador(headless=True))
-        log_print("🧭 Navegador iniciado em modo headless")
+        log_print("🧭 navegador iniciado em modo headless")
         navegador.get("https://servicos.dnit.gov.br/sior/Account/Login/?ReturnUrl=%2Fsior%2F")
 
         # Cria a sessão requests
