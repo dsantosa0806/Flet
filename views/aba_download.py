@@ -11,7 +11,7 @@ from navegador.sior_selenium_execution import (
     acessa_tela_incial_auto, iniciar_sessao_sior,
     option_navegador, load_cookies, store_cookies
 )
-from requests_data.requisicoes import get_relatorio_financeiro, get_relatorio_resumido
+from requests_data.requisicoes_sior import get_relatorio_financeiro, get_relatorio_resumido
 
 
 # === LÓGICA DO PROCESSAMENTO DE DOWNLOADS ===
@@ -43,7 +43,8 @@ def executar_fluxo_completo(codigos_input,
         login(navegador)
 
         log_print("⏳ Aguarde 60 segundos para realizar o login manual...")
-        import time; time.sleep(60)
+        import time
+        time.sleep(60)
 
         cookies_store(navegador)
         navegador.quit()
@@ -55,6 +56,7 @@ def executar_fluxo_completo(codigos_input,
         navegador.refresh()
 
     acessa_tela_incial_auto(navegador)
+    log_print("✅ Login realizado com sucesso.")
     log_print("📄 Tela inicial carregada.")
 
     # Criação da pasta destino
@@ -95,7 +97,14 @@ def aba_download(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page):
     btn_download = ft.ElevatedButton("Iniciar Processo", icon=ft.Icons.DOWNLOAD)
     progress_download = ft.ProgressBar(width=400, visible=False)
     status_download = ft.Text("", size=DEFAULT_FONT_SIZE, color="blue", visible=False)
-    log_download = ft.TextField(label="📝 Log de Download", multiline=True, read_only=True, expand=True, height=200)
+    log_download = ft.TextField(label="📝 Log de Download",
+                                multiline=True,
+                                read_only=True,
+                                expand=True,
+                                height=200,
+                                label_style=ft.TextStyle(size=DEFAULT_FONT_SIZE),
+                                text_style=ft.TextStyle(size=DEFAULT_FONT_SIZE)
+                                )
 
     # === FUNÇÃO PRINCIPAL DE AÇÃO ===
     def run_download(e):
@@ -121,21 +130,30 @@ def aba_download(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page):
         def task():
             try:
                 total = len(codigos)
-                for idx, codigo in enumerate(codigos, start=1):
-                    status_download.value = f"Processando {idx}/{total}: {codigo}"
+                status_download.value = f"Iniciando processamento de {total} AITs..."
+                page.update()
+
+                relatorios_processados = []
+
+                def atualizar_progresso(idx, total):
+                    status_download.value = f"Processando {idx}/{total}: {codigos[idx - 1]}"
                     progress_download.value = idx / total
                     page.update()
-                    executar_fluxo_completo(
-                        codigo,
-                        log=log_download,
-                        baixar_financeiro=check_financeiro.value,
-                        baixar_resumido=check_resumido.value,
-                        atualizar_progresso=lambda a, t: None,
-                        total=total
-                    )
+
+                executar_fluxo_completo(
+                    "\n".join(codigos),  # passando todos de uma vez
+                    log=log_download,
+                    baixar_financeiro=check_financeiro.value,
+                    baixar_resumido=check_resumido.value,
+                    atualizar_progresso=atualizar_progresso,
+                    total=total
+                )
+
+                # Resumo no final
+                log_download.value += f"\n✅ Relatórios baixados para {total} AIT(s):\n" + "\n".join(codigos)
                 status_download.value = "✅ Concluído"
             except Exception as ex:
-                log_download.value += f"❌ Erro em {codigo}: {ex}\n"
+                log_download.value += f"\n❌ Erro: {ex}\n"
             finally:
                 btn_download.disabled = False
                 btn_download.text = "Iniciar Processo"

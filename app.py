@@ -5,14 +5,6 @@ from views.aba_download import aba_download
 from views.aba_sobre import aba_sobre
 from config import DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, WINDOW_WIDTH, WINDOW_HEIGHT, APP_TITLE
 
-# Variáveis globais
-navegador_global = None
-historico_logs = []
-tabela_resultados = []
-pagina_atual = 1
-itens_por_pagina = 5
-filtro_ativo = {}
-
 
 def construir_cabecalho(toggle_switch):
     return ft.Row([
@@ -26,9 +18,12 @@ def construir_abas(page):
         selected_index=0,
         animation_duration=200,
         tabs=[
-            ft.Tab(text="Consulta AIT", content=aba_consulta(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, itens_por_pagina, page)),
-            ft.Tab(text="Download de Relatórios", content=aba_download(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page)),
-            ft.Tab(text="Consulta Crédito Sapiens", content=aba_consulta_sapiens(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page)),
+            ft.Tab(text="Consulta AIT", content=aba_consulta(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE,
+                                                             page)),
+            ft.Tab(text="Download de Relatórios", content=aba_download(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE,
+                                                                       page)),
+            ft.Tab(text="Consulta Crédito Sapiens", content=aba_consulta_sapiens(ft, DEFAULT_FONT_SIZE,
+                                                                                 HEADING_FONT_SIZE, page)),
             ft.Tab(text="Sobre", content=aba_sobre(ft, HEADING_FONT_SIZE, DEFAULT_FONT_SIZE)),
         ],
         expand=1
@@ -66,8 +61,19 @@ def main(page: ft.Page):
         expand=False,
 
     )
+    # Dialogo global para exibir alertas
+    dialogo_global = ft.AlertDialog(
+        modal=True,
+        title=ft.Text(""),
+        content=ft.Text(""),
+        actions=[ft.TextButton("OK")],
+        actions_alignment="end"
+    )
+
+    page.dialog = dialogo_global
 
     page.add(conteudo_limitado)
+    page.add(dialogo_global)
 
 
 if __name__ == "__main__":

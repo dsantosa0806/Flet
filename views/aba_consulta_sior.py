@@ -2,23 +2,29 @@ import os
 import re
 import threading
 from datetime import datetime
-
 import pandas as pd
 from navegador.sior_selenium_execution import iniciar_sessao_sior
-from requests_data.requisicoes import get_dados_auto
+from requests_data.requisicoes_sior import get_dados_auto
+from utils.popups import mostrar_alerta
 
 
 # === ABA DE CONSULTA DE AIT ===
-def aba_consulta(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, itens_por_pagina, page):
+def aba_consulta(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page):
     # === ESTADO GLOBAL LOCAL ===
     tabela_resultados = []
     pagina_atual = 1
+    itens_por_pagina = 3
     filtro_ativo = {}
 
     # === COMPONENTES ===
     input_consulta = ft.TextField(label="Número do AIT (um por linha)", multiline=True, min_lines=5, max_lines=10,
                                   height=150, label_style=ft.TextStyle(size=DEFAULT_FONT_SIZE),
                                   text_style=ft.TextStyle(size=DEFAULT_FONT_SIZE))
+    expander_input_consulta = ft.ExpansionTile(
+        title=ft.Text("📥 Inserir Número do AIT"),
+        initially_expanded=True,  # começa expandido
+        controls=[input_consulta],
+    )
     btn_consultar = ft.ElevatedButton("Iniciar Consulta", icon=ft.Icons.SEARCH, bgcolor="green", color="white")
     progress_consulta = ft.ProgressBar(width=400, visible=False)
     status_consulta = ft.Text("", size=DEFAULT_FONT_SIZE, color="blue", visible=False)
@@ -52,7 +58,10 @@ def aba_consulta(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, itens_por_pagina, pag
     ]
     table_consulta = ft.DataTable(
         columns=[ft.DataColumn(ft.Text(c, size=DEFAULT_FONT_SIZE)) for c in cols],
-        rows=[], expand=True, data_text_style=ft.TextStyle(size=DEFAULT_FONT_SIZE)
+        rows=[],
+        expand=True,
+        visible=False,
+        data_text_style=ft.TextStyle(size=DEFAULT_FONT_SIZE)
     )
 
     # === FUNÇÕES AUXILIARES ===
@@ -93,9 +102,12 @@ def aba_consulta(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, itens_por_pagina, pag
         # Atualiza visibilidades
         for w in [filtro_numero_auto, filtro_situacao_fase, filtro_situacao_debito, btn_filtrar, btn_limpar]:
             w.visible = True
+
         vis = total > 0
-        for w in [total_text, paginador_text, btn_anterior, btn_proximo, btn_export_consulta]:
-            w.visible = vis
+        for w in [total_text, paginador_text, btn_anterior, btn_proximo, btn_export_consulta, table_consulta,
+                  container_tabela]:
+            w.visible = vis  # ⬅️ Controla a visibilidade do container e tabela
+
         btn_anterior.disabled = (pagina == 1)
         btn_proximo.disabled = (pagina == total_paginas)
         page.update()
@@ -156,6 +168,10 @@ def aba_consulta(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, itens_por_pagina, pag
             df.to_excel(path, index=False)
 
             msg_export.value = "📤 Exportação concluída com sucesso!"
+            mostrar_alerta(ft, page, "Exportado com sucesso",
+                           "✅ Disponível em C:\\Downloads!",
+                           tipo="success")
+
             msg_export.color = "green"
             msg_export.visible = True
             page.update()
@@ -189,6 +205,7 @@ def aba_consulta(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, itens_por_pagina, pag
         log_consulta.value = ""
         page.update()
 
+
         def task():
             try:
                 navegador, session = iniciar_sessao_sior()
@@ -204,7 +221,6 @@ def aba_consulta(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, itens_por_pagina, pag
                             valor = rec.get(k, "")
                             registro[k] = valor.get("DateString", "") if isinstance(valor, dict) else valor
                         tabela_resultados.append(registro)
-
                 filtro_situacao_fase.options = [ft.dropdown.Option(key=f, text=f)
                                                 for f in sorted({d.get("SituacaoFase", "")
                                                                  for d in tabela_resultados}) if f]
@@ -215,12 +231,15 @@ def aba_consulta(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, itens_por_pagina, pag
                 status_consulta.value = "✅ Concluído"
             except Exception as ex:
                 log_consulta.value = f"❌ Erro: {ex}"
+                status_consulta.value = "Erro"
             finally:
                 btn_consultar.disabled = False
-                btn_consultar.text = "Iniciar Consulta"
+                btn_consultar.text = "Nova Consulta"
                 progress_consulta.visible = False
-                table_consulta.visible = True
-                page.update()
+                expander_input_consulta.expanded = False  # 👈 colapsa de verdade
+                expander_input_consulta.update()  # 👈 redesenha só o tile
+
+                page.update()  # 👈 redesenha a página
 
         threading.Thread(target=task).start()
 
@@ -232,20 +251,42 @@ def aba_consulta(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, itens_por_pagina, pag
     btn_proximo.on_click = pagina_proxima
     btn_export_consulta.on_click = exportar_xlsx
 
+    # ⬇️ Tabela com formatação aplicada
+    container_tabela = ft.Container(
+        content=table_consulta,
+        height=200,  # Aumente ou ajuste conforme necessário
+        padding=10,
+        border_radius=10,
+        border=ft.border.all(1, ft.Colors.GREY_600),
+        bgcolor=ft.Colors.with_opacity(0.05, ft.Colors.ON_SURFACE),
+        visible=False  # ⬅️ Oculto inicialmente
+
+    )
+
     # === LAYOUT FINAL ===
     return ft.Column([
         ft.Row([ft.Text("🔍 CONSULTA AIT", size=HEADING_FONT_SIZE, weight="bold"), ft.Container(expand=True)]),
-        input_consulta,
+
+        expander_input_consulta,
         ft.Row([btn_consultar], alignment="center"),
+
         status_consulta,
         progress_consulta,
-        ft.Row([filtro_numero_auto, filtro_situacao_fase, filtro_situacao_debito,
-                btn_filtrar, btn_limpar, btn_export_consulta], alignment="center"),
-        loading_filtro,
-        table_consulta,
-        ft.Row([btn_anterior, paginador_text, btn_proximo, total_text], alignment="right"),
-        ft.Divider(thickness=1, color="grey"),
 
+        ft.Row([
+            filtro_numero_auto,
+            filtro_situacao_fase,
+            filtro_situacao_debito,
+            btn_filtrar,
+            btn_limpar,
+            btn_export_consulta
+        ], alignment="center"),
+
+        loading_filtro,
+        container_tabela,
+
+        ft.Row([btn_anterior, paginador_text, btn_proximo, total_text], alignment="center"),
         msg_export,
         log_consulta
-    ], expand=True)
+
+    ], expand=True, spacing=10)

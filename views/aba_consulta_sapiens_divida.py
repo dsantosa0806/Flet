@@ -5,7 +5,9 @@ import threading
 import pandas as pd
 from datetime import datetime
 from selenium import webdriver
-from navegador.sapiens_selenium_execution import acessa_sapiens, login as sapiens_login, get_creditos_sapiens
+from navegador.sapiens_selenium_execution import login as sapiens_login, options_nav
+from requests_data.requisicoes_sapiens import get_creditos_sapiens
+from utils.popups import mostrar_alerta
 
 
 # === Funções auxiliares ===
@@ -30,15 +32,21 @@ def salvar_credenciais(user, password):
         print(f"Erro ao salvar credenciais: {ex}")
 
 
-def exportar_para_excel(registros, nome_prefixo, mensagem_sucesso, mensagem_falha, msg_output, page):
+def exportar_para_excel(ft, registros, nome_prefixo, mensagem_sucesso, mensagem_falha, msg_output, page):
     try:
         df_out = pd.DataFrame(registros)
         ts = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         caminho = os.path.join(os.path.expanduser("~"), "Downloads", f"{nome_prefixo}_{ts}.xlsx")
         df_out.to_excel(caminho, index=False)
         msg_output.value = mensagem_sucesso
+        mostrar_alerta(ft, page, "Exportado com sucesso",
+                       "✅ Disponível em C:\\Downloads",
+                       tipo="success")
     except Exception as ex:
         msg_output.value = f"{mensagem_falha}: {ex}"
+        mostrar_alerta(ft, page, "Falha",
+                       "Uma falha ocorreu ao gerar o arquivo.",
+                       tipo="error")
     msg_output.visible = True
     page.update()
     threading.Timer(3, lambda: (setattr(msg_output, 'visible', False), page.update())).start()
@@ -48,19 +56,46 @@ def exportar_para_excel(registros, nome_prefixo, mensagem_sucesso, mensagem_falh
 def aba_consulta_sapiens(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page):
     # Estado
     page_index = 1
-    items_per_page = 5
+    items_per_page = 3
     paginated, all_records = [], []
 
     cached_user, cached_pass = carregar_credenciais()
 
-    txt_user_sapiens = ft.TextField(label="Usuário Sapiens", width=300) if not cached_user else None
-    txt_pass_sapiens = ft.TextField(label="Senha Sapiens", width=300, password=True) if not cached_user else None
+    # Campos SEMPRE visíveis e criados corretamente
+    txt_user_sapiens = ft.TextField(
+        label="Usuário Sapiens",
+        width=300,
+        value=cached_user or ""
+    )
 
+    txt_pass_sapiens = ft.TextField(
+        label="Senha Sapiens",
+        width=300,
+        password=True,
+        can_reveal_password=True,
+        value=cached_pass or ""
+    )
+    credenciais_expander = ft.ExpansionTile(
+        title=ft.Text("🔐 Credenciais Sapiens"),
+        initially_expanded=False,
+        controls=[
+            ft.Row([
+                txt_user_sapiens,
+                txt_pass_sapiens
+            ])
+        ]
+    )
     doc_field = ft.TextField(label="CPF ou CNPJ do Devedor", width=300)
     btn_consultar_doc = ft.ElevatedButton("Consultar", icon=ft.Icons.SEARCH)
     status_doc = ft.Text("", visible=False, color="blue")
     progress_doc = ft.ProgressBar(width=400, visible=False)
-    log_doc = ft.TextField(label="📝 Log de Consulta Sapiens", multiline=True, read_only=True, height=150, expand=True)
+    log_doc = ft.TextField(label="📝 Log de Consulta Sapiens",
+                           multiline=True,
+                           read_only=True,
+                           height=200,
+                           expand=True,
+                           label_style=ft.TextStyle(size=DEFAULT_FONT_SIZE),
+                           text_style=ft.TextStyle(size=DEFAULT_FONT_SIZE))
 
     total_text_doc = ft.Text("Total: 0")
     paginador_doc = ft.Text()
@@ -92,8 +127,12 @@ def aba_consulta_sapiens(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page):
             for r in paginated[start:end]
         ]
         paginador_doc.value = f"{page_index}/{pages}"
+        # visibilidade com base nos registros
+        container_tabela_doc.visible = total > 0
+        table_doc.visible = total > 0
         for w in [btn_prev_doc, btn_next_doc, btn_export_doc]:
             w.visible = total > 0
+
         btn_prev_doc.disabled = (page_index == 1)
         btn_next_doc.disabled = (page_index == pages)
         page.update()
@@ -111,6 +150,7 @@ def aba_consulta_sapiens(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page):
 
     def export_all(e):
         exportar_para_excel(
+            ft=ft,
             registros=all_records,
             nome_prefixo="Sapiens_All",
             mensagem_sucesso="📤 Exportado!",
@@ -128,16 +168,20 @@ def aba_consulta_sapiens(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page):
             page.update()
             return
 
-        if cached_user:
-            user, pwd = cached_user, cached_pass
-        else:
-            user = txt_user_sapiens.value.strip()
-            pwd = txt_pass_sapiens.value.strip()
-            if not user or not pwd:
-                log_doc.value = "Informe usuário/senha"
-                page.update()
-                return
-            salvar_credenciais(user, pwd)
+        user_input = txt_user_sapiens.value.strip()
+        pass_input = txt_pass_sapiens.value.strip()
+
+        if not user_input or not pass_input:
+            log_doc.value = "⚠ Informe usuário e senha"
+            page.update()
+            return
+
+        # Se for diferente do cache, salva novo
+        if user_input != cached_user or pass_input != cached_pass:
+            salvar_credenciais(user_input, pass_input)
+            cached_user, cached_pass = user_input, pass_input  # atualiza os valores em memória
+
+        user, pwd = user_input, pass_input
 
         doc_field.value = doc
         btn_consultar_doc.disabled = True
@@ -154,13 +198,25 @@ def aba_consulta_sapiens(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page):
         def task():
             nonlocal paginated, all_records, page_index
             try:
-                nav = webdriver.Chrome()
-                acessa_sapiens(nav)
-                sapiens_login(nav, user, pwd)
-                status_doc.value = "Buscando"
+
+                nav = webdriver.Chrome(options=options_nav())
+                nav.minimize_window()
+                nav, cookies = sapiens_login(nav, user, pwd)
+
+                if not cookies:
+                    status_doc.value = "❌ Falha no login. Usuário ou senha incorreto."
+                    mostrar_alerta(ft, page, "Falha no login",
+                                   "Usuário ou senha incorreto.",
+                                   tipo="error")
+                    page.update()
+                    return
+
+                status_doc.value = "Login realizado com sucesso! Busca em andamento..."
                 page.update()
-                res = get_creditos_sapiens(nav, doc)
+
+                res = get_creditos_sapiens(cookies, doc)
                 nav.quit()
+
                 all_records = res.get("records", [])
                 paginated = [
                     {
@@ -177,12 +233,14 @@ def aba_consulta_sapiens(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page):
                 page_index = 1
                 status_doc.value = f"{len(paginated)} registros encontrados"
                 atualizar_tabela()
+
             except Exception as ex:
                 log_doc.value = f"Erro: {ex}"
                 status_doc.value = "Erro"
             finally:
                 progress_doc.visible = False
                 btn_consultar_doc.disabled = False
+                btn_consultar_doc.text = "Consultar novamente"
                 page.update()
 
         threading.Thread(target=task).start()
@@ -195,14 +253,29 @@ def aba_consulta_sapiens(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page):
 
     # Layout
     children = [ft.Text("📑 CONSULTA CRÉDITO SAPIENS DÍVIDA", size=HEADING_FONT_SIZE, weight="bold")]
-    if txt_user_sapiens:
-        children.append(ft.Row([txt_user_sapiens, txt_pass_sapiens]))
-    children.append(ft.Row([doc_field, btn_consultar_doc]))
-    children += [
-        status_doc, progress_doc, table_doc,
+
+    children.append(credenciais_expander)
+
+    container_tabela_doc = ft.Container(
+        content=table_doc,
+        expand=True,
+        height=1000,
+        padding=10,
+        border_radius=10,
+        border=ft.border.all(1, ft.Colors.GREY_600),
+        bgcolor=ft.Colors.with_opacity(0.05, ft.Colors.ON_SURFACE),
+        visible=False  # ⬅️ oculto inicialmente
+    )
+    # Adiciona os demais elementos
+    children.extend([
+        ft.Row([doc_field, btn_consultar_doc]),
+        status_doc,
+        progress_doc,
+        container_tabela_doc,
         ft.Row([btn_prev_doc, paginador_doc, btn_next_doc, total_text_doc], alignment="center"),
         ft.Row([btn_export_doc], alignment="center"),
-        msg_export_doc, log_doc
-    ]
+        msg_export_doc,
+        log_doc
+    ])
 
-    return ft.Column(children, expand=True)
+    return ft.Column(children, expand=True, spacing=10)
