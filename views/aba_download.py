@@ -148,9 +148,6 @@ def aba_download(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page):
                     atualizar_progresso=atualizar_progresso,
                     total=total
                 )
-
-                # Resumo no final
-                log_download.value += f"\n✅ Relatórios baixados para {total} AIT(s):\n" + "\n".join(codigos)
                 status_download.value = "✅ Concluído"
             except Exception as ex:
                 log_download.value += f"\n❌ Erro: {ex}\n"
