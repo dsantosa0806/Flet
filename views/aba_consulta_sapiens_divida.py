@@ -259,7 +259,7 @@ def aba_consulta_sapiens(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page):
     container_tabela_doc = ft.Container(
         content=table_doc,
         expand=True,
-        height=1000,
+        height=1100,
         padding=10,
         border_radius=10,
         border=ft.border.all(1, ft.Colors.GREY_600),

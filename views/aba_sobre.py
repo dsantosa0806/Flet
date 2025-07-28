@@ -40,6 +40,7 @@ def aba_sobre(ft, HEADING_FONT_SIZE, DEFAULT_FONT_SIZE):
 
     titulo_erros = ft.Text("⚠️ Em caso de erros ou problemas", weight="bold", size=DEFAULT_FONT_SIZE)
     conteudo_erros = ft.Text(
+        "- O Chrome deverá sempre estar atualizado para o correto funcionamento da aplicação.\n"
         "- Verifique se o número do AIT ou CPF/CNPJ está no formato correto.\n"
         "- Certifique-se de que o login e senha do SAPIENS estão atualizados e corretos.\n"
         "- Caso o navegador não inicie ou o sistema retorne erro de login, feche o programa e tente novamente.\n"

@@ -205,7 +205,6 @@ def aba_consulta(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page):
         log_consulta.value = ""
         page.update()
 
-
         def task():
             try:
                 navegador, session = iniciar_sessao_sior()
