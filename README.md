@@ -29,8 +29,8 @@
 
 1. **Clone o repositório:**
    ```bash
-   git clone https://github.com/seu-usuario/lextrack-rpa.git
-   cd lextrack-rpa
+   git clone https://github.com/dsantosa0806/Flet.git
+   cd Flet
    
 
 2. **Crie e ative um ambiente virtual:**
