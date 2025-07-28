@@ -14,17 +14,19 @@ VSVersionInfo(
       StringTable(
         '040904B0',
         [
-          ('CompanyName', 'G4F RPA'),
-          ('FileDescription', 'RPA - Extração de Relatórios SIOR e Créditos Sapiens'),
-          ('FileVersion', '1.0.0.0'),
-          ('InternalName', 'RPA'),
-          ('LegalCopyright', '© 2025 Daniel Almeida'),
-          ('OriginalFilename', 'RPA.exe'),
-          ('ProductName', 'RPA Search Data'),
-          ('ProductVersion', '1.0.0.0')
+          StringStruct('CompanyName', 'G4F247'),
+          StringStruct('FileDescription', 'RPA - Extração de Relatórios SIOR e Créditos Sapiens'),
+          StringStruct('FileVersion', '1.0.0.0'),
+          StringStruct('InternalName', 'RPA'),
+          StringStruct('LegalCopyright', '© 2025 Daniel Almeida'),
+          StringStruct('OriginalFilename', 'RPA.exe'),
+          StringStruct('ProductName', 'RPA Search Data'),
+          StringStruct('ProductVersion', '1.0.0.0')
         ]
       )
     ]),
-    VarFileInfo([VarStruct('Translation', [1033, 1200])])
+    VarFileInfo([
+      VarStruct('Translation', [1033, 1200])
+    ])
   ]
 )
