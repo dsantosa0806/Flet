@@ -9,6 +9,16 @@ import os
 import json
 
 caminho_padrao = config.caminho_padrao
+USER_DATA_DIR = config.USER_DATA_DIR
+
+
+def store_profile(directory=USER_DATA_DIR):
+    # Verifica se o diretório existe, caso contrário, cria
+    try:
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+    except Exception as e:
+        print(f"Erro ao criar pasta profile: {e}")
 
 
 def store_cookies(navegador, directory="C:\\Cookies-Selenium"):
@@ -64,6 +74,10 @@ def option_navegador(headless=True):
 
     if headless:
         options.add_argument("--headless=new")
+
+    store_profile()  # Criação da pasta caso não exista
+    options.add_argument(f"--user-data-dir={USER_DATA_DIR}")
+    options.add_argument("--profile-directory=Default")
 
     options.add_experimental_option('prefs', {
         "download.default_directory": config.caminho_padrao,

@@ -1,5 +1,4 @@
 import os
-import re
 import json
 import threading
 import pandas as pd
@@ -8,11 +7,14 @@ from selenium import webdriver
 from navegador.sapiens_selenium_execution import login as sapiens_login, options_nav
 from requests_data.requisicoes_sapiens import get_creditos_sapiens
 from utils.popups import mostrar_alerta
+import config
+
+COOKIE_PATH_SAPIENS = config.COOKIE_PATH_SAPIENS
 
 
 # === Funções auxiliares ===
 def carregar_credenciais():
-    caminho = os.path.join(os.path.expanduser("~"), ".sapiens_cache.json")
+    caminho = COOKIE_PATH_SAPIENS
     if os.path.exists(caminho):
         try:
             with open(caminho, "r", encoding="utf-8") as f:
@@ -24,7 +26,7 @@ def carregar_credenciais():
 
 
 def salvar_credenciais(user, password):
-    caminho = os.path.join(os.path.expanduser("~"), ".sapiens_cache.json")
+    caminho = COOKIE_PATH_SAPIENS
     try:
         with open(caminho, "w", encoding="utf-8") as f:
             json.dump({"user": user, "password": password}, f)

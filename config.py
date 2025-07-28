@@ -6,6 +6,8 @@ pasta_autos = r'C:\Extracao-Relatorio-Financeiro-Processo-Autos'
 caminho_padrao = os.path.join(os.path.expanduser("~"), "Downloads")
 caminho_destino_padrao = r'C:\Extracao-Relatorio-Financeiro-Processo-Arquivos'
 COOKIE_PATH = r'C:\Cookies-Selenium\cookies_sapiens.json'
+USER_DATA_DIR = os.path.join(os.path.expanduser("~"), "ChromeSiorProfile")
+COOKIE_PATH_SAPIENS = os.path.join(os.path.expanduser("~"), ".sapiens_cache.json")
 
 # Constantes de estilo
 DEFAULT_FONT_SIZE = 12
