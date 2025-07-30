@@ -1,5 +1,5 @@
 import threading
-
+import flet as ft
 
 def mostrar_alerta(ft, page, titulo: str, mensagem: str, tipo="info", duracao=3):
     """
@@ -20,6 +20,10 @@ def mostrar_alerta(ft, page, titulo: str, mensagem: str, tipo="info", duracao=3)
 
     icone, cor = cores.get(tipo, ("ℹ️", "blue"))
 
+    # ✅ Garante que o diálogo foi instanciado antes de configurar
+    if not hasattr(page, "dialog") or page.dialog is None:
+        page.dialog = ft.AlertDialog()
+
     page.dialog.title = ft.Text(f"{icone} {titulo}", color=cor, weight="bold")
     page.dialog.content = ft.Text(mensagem)
     page.dialog.actions = [
@@ -29,7 +33,6 @@ def mostrar_alerta(ft, page, titulo: str, mensagem: str, tipo="info", duracao=3)
     page.dialog.open = True
     page.update()
 
-    # Fecha automaticamente após o tempo definido
     def fechar_auto():
         if page.dialog.open:
             page.dialog.open = False
@@ -39,6 +42,6 @@ def mostrar_alerta(ft, page, titulo: str, mensagem: str, tipo="info", duracao=3)
 
 
 def fechar_dialogo(page):
-    if page.dialog.open:
+    if page.dialog and page.dialog.open:
         page.dialog.open = False
         page.update()

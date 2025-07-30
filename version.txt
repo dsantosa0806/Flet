@@ -16,12 +16,12 @@ VSVersionInfo(
         [
           StringStruct('CompanyName', 'G4F247'),
           StringStruct('FileDescription', 'RPA - Extração de Relatórios SIOR e Créditos Sapiens'),
-          StringStruct('FileVersion', '1.0.0.0'),
+          StringStruct('FileVersion', '1.1.0.0'),
           StringStruct('InternalName', 'RPA'),
           StringStruct('LegalCopyright', '© 2025 Daniel Almeida'),
-          StringStruct('OriginalFilename', 'RPA.exe'),
+          StringStruct('OriginalFilename', 'RPA v1.1.0.0.exe'),
           StringStruct('ProductName', 'RPA Search Data'),
-          StringStruct('ProductVersion', '1.0.0.0')
+          StringStruct('ProductVersion', '1.1.0.0')
         ]
       )
     ]),

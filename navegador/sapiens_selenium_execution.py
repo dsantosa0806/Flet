@@ -41,6 +41,12 @@ def options_nav():
     options.add_argument("--disable-extensions")
     options.add_argument("--start-minimized")
     options.add_argument("--window-size=800,600")
+    options.add_experimental_option('prefs', {
+        "download.default_directory": config.caminho_padrao,  # change default directory for downloads
+        "download.prompt_for_download": False,  # to auto download the file
+        "download.directory_upgrade": True,
+        "plugins.always_open_pdf_externally": True  # it will not show PDF directly in chrome
+    })
 
     return options
 

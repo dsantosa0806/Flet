@@ -11,6 +11,7 @@ COOKIE_PATH_SAPIENS = os.path.join(os.path.expanduser("~"), ".sapiens_cache.json
 # Constantes de estilo
 DEFAULT_FONT_SIZE = 12
 HEADING_FONT_SIZE = 16
+PAGE_TITLE_SIZE = 10
 WINDOW_WIDTH = 1200
 WINDOW_HEIGHT = 1024
 APP_TITLE = "RPA Search Data"

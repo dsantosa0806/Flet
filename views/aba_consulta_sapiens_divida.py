@@ -34,18 +34,93 @@ def salvar_credenciais(user, password):
         print(f"Erro ao salvar credenciais: {ex}")
 
 
-def exportar_para_excel(ft, registros, nome_prefixo, mensagem_sucesso, mensagem_falha, msg_output, page):
+def exportar_para_excel(ft,
+                        registros,
+                        nome_prefixo,
+                        mensagem_sucesso,
+                        mensagem_falha,
+                        msg_output,
+                        page,
+                        alerta_dialogo):
     try:
+        campos_data = [
+            'dataVencimento', 'dataInicioMultaMora', 'dataInicioSelic',
+            'dataConstituicaoDefinitiva', 'dataNotificacaoInicial',
+            'dataDecursoPrazoDefesa', 'dataDocumentoOrigem', 'criadoEm', 'atualizadoEm',
+            'dataInscricaoDivida','dataValidadeAtualizacao', 'dataAtualizacao'
+        ]
+
+        for registro in registros:
+            # ⏱️ Formatando campos de data
+            for campo in campos_data:
+                valor = registro.get(campo)
+                if isinstance(valor, dict) and 'date' in valor:
+                    try:
+                        data_original = valor['date'].split(' ')[0]
+                        ano, mes, dia = data_original.split('-')
+                        registro[campo] = f"{dia}/{mes}/{ano}"
+                    except Exception:
+                        registro[campo] = ""
+
+            # 📄 Formatando CPF/CNPJ
+            doc_raw = registro.get("devedorPrincipal", {}).get("numeroDocumentoPrincipal", "")
+            doc_formatado = ""
+            if doc_raw.isdigit():
+                if len(doc_raw) == 11:
+                    doc_formatado = f"{doc_raw[:3]}.{doc_raw[3:6]}.{doc_raw[6:9]}-{doc_raw[9:]}"
+                elif len(doc_raw) == 14:
+                    doc_formatado = f"{doc_raw[:2]}.{doc_raw[2:5]}.{doc_raw[5:8]}/{doc_raw[8:12]}-{doc_raw[12:]}"
+                else:
+                    doc_formatado = doc_raw
+            registro["Devedor_DocumentoFormatado"] = doc_formatado
+
+            # 📂 Extraindo NUP da pasta
+            registro["NUP"] = registro.get("pasta", {}).get("NUP", "")
+
+            # 👤 Extraindo nome de criadoPor e atualizadoPor
+            registro["CriadoPor_Nome"] = registro.get("criadoPor", {}).get("nome", "")
+            registro["AtualizadoPor_Nome"] = registro.get("atualizadoPor", {}).get("nome", "")
+
+            # 📝 Extraindo descrição da modalidadeDocumentoOrigem
+            registro["ModalidadeDocumentoDescricao"] = registro.get("modalidadeDocumentoOrigem", {}).get("descricao",
+                                                                                                         "")
+
+            # 🔄 Concatenando nome + descrição de faseAtual.especieStatus
+            especie_status = registro.get("faseAtual", {}).get("especieStatus", {})
+            nome = especie_status.get("nome", "")
+            descricao = especie_status.get("descricao", "")
+            if nome or descricao:
+                registro["FaseAtual_Completa"] = f"{nome} - {descricao}".strip(" -")
+            else:
+                registro["FaseAtual_Completa"] = ""
+
+            # 🏛️ Extraindo nome do credor
+            registro["Credor_Nome"] = registro.get("credor", {}).get("pessoa", {}).get("nome", "")
+
+            # 🌎 Extraindo nome da regional
+            registro["Regional_Nome"] = registro.get("regional", {}).get("nome", "")
+
+            # 🏢 Concatenando sigla + nome da unidadeResponsavel
+            unidade = registro.get("unidadeResponsavel", {})
+            sigla = unidade.get("sigla", "")
+            nome_unidade = unidade.get("nome", "")
+            if sigla or nome_unidade:
+                registro["UnidadeResponsavel_Completa"] = f"{sigla} - {nome_unidade}".strip(" -")
+            else:
+                registro["UnidadeResponsavel_Completa"] = ""
+
         df_out = pd.DataFrame(registros)
         ts = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         caminho = os.path.join(os.path.expanduser("~"), "Downloads", f"{nome_prefixo}_{ts}.xlsx")
         df_out.to_excel(caminho, index=False)
         msg_output.value = mensagem_sucesso
+        page.dialog = alerta_dialogo
         mostrar_alerta(ft, page, "Exportado com sucesso",
                        "✅ Disponível em C:\\Downloads",
                        tipo="success")
     except Exception as ex:
         msg_output.value = f"{mensagem_falha}: {ex}"
+        page.dialog = alerta_dialogo
         mostrar_alerta(ft, page, "Falha",
                        "Uma falha ocorreu ao gerar o arquivo.",
                        tipo="error")
@@ -62,6 +137,14 @@ def aba_consulta_sapiens(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page):
     paginated, all_records = [], []
 
     cached_user, cached_pass = carregar_credenciais()
+
+    alerta_dialogo = ft.AlertDialog(
+        modal=True,
+        title=ft.Text(""),
+        content=ft.Text(""),
+        actions=[],
+        open=False
+    )
 
     # Campos SEMPRE visíveis e criados corretamente
     txt_user_sapiens = ft.TextField(
@@ -158,7 +241,8 @@ def aba_consulta_sapiens(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page):
             mensagem_sucesso="📤 Exportado!",
             mensagem_falha="❌ Falha ao exportar",
             msg_output=msg_export_doc,
-            page=page
+            page=page,
+            alerta_dialogo=alerta_dialogo
         )
 
     def run_consult(e):
@@ -207,6 +291,7 @@ def aba_consulta_sapiens(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page):
 
                 if not cookies:
                     status_doc.value = "❌ Falha no login. Usuário ou senha incorreto."
+                    page.dialog = alerta_dialogo
                     mostrar_alerta(ft, page, "Falha no login",
                                    "Usuário ou senha incorreto.",
                                    tipo="error")
@@ -254,14 +339,15 @@ def aba_consulta_sapiens(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page):
     btn_export_doc.on_click = export_all
 
     # Layout
-    children = [ft.Text("📑 CONSULTA CRÉDITO SAPIENS DÍVIDA", size=HEADING_FONT_SIZE, weight="bold")]
-
-    children.append(credenciais_expander)
+    children = [
+        ft.Row([ft.Text("SAPIENS > Consulta Crédito Sapiens Dívida", size=10, weight="bold")], alignment="center"),
+        ft.Divider(),
+        credenciais_expander]
 
     container_tabela_doc = ft.Container(
         content=table_doc,
         expand=True,
-        height=1200,
+        height=200,
         padding=10,
         border_radius=10,
         border=ft.border.all(1, ft.Colors.GREY_600),
@@ -277,7 +363,8 @@ def aba_consulta_sapiens(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page):
         ft.Row([btn_prev_doc, paginador_doc, btn_next_doc, total_text_doc], alignment="center"),
         ft.Row([btn_export_doc], alignment="center"),
         msg_export_doc,
-        log_doc
+        log_doc,
+        alerta_dialogo
     ])
 
     return ft.Column(children, expand=True, spacing=10)

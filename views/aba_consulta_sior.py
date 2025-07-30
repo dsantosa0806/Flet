@@ -16,6 +16,14 @@ def aba_consulta(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page):
     itens_por_pagina = 3
     filtro_ativo = {}
 
+    alerta_dialogo = ft.AlertDialog(
+        modal=True,
+        title=ft.Text(""),
+        content=ft.Text(""),
+        actions=[],
+        open=False
+    )
+
     # === COMPONENTES ===
     input_consulta = ft.TextField(label="Número do AIT (um por linha)", multiline=True, min_lines=5, max_lines=10,
                                   height=150, label_style=ft.TextStyle(size=DEFAULT_FONT_SIZE),
@@ -166,8 +174,8 @@ def aba_consulta(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page):
             nome_arquivo = f"Consulta_AIT_{ts}.xlsx"
             path = os.path.join(os.path.expanduser("~"), "Downloads", nome_arquivo)
             df.to_excel(path, index=False)
-
             msg_export.value = "📤 Exportação concluída com sucesso!"
+            page.dialog = alerta_dialogo
             mostrar_alerta(ft, page, "Exportado com sucesso",
                            "✅ Disponível em C:\\Downloads!",
                            tipo="success")
@@ -264,8 +272,8 @@ def aba_consulta(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page):
 
     # === LAYOUT FINAL ===
     return ft.Column([
-        ft.Row([ft.Text("🔍 CONSULTA AIT", size=HEADING_FONT_SIZE, weight="bold"), ft.Container(expand=True)]),
-
+        ft.Row([ft.Text("SIOR > Consultar Auto de Infração", size=10, weight="bold")], alignment="center"),
+        ft.Divider(),
         expander_input_consulta,
         ft.Row([btn_consultar], alignment="center"),
 
@@ -286,6 +294,7 @@ def aba_consulta(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page):
 
         ft.Row([btn_anterior, paginador_text, btn_proximo, total_text], alignment="center"),
         msg_export,
-        log_consulta
+        log_consulta,
+        alerta_dialogo
 
     ], expand=True, spacing=10)

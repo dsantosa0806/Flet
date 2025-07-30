@@ -145,3 +145,57 @@ def get_dados_auto(auto, s):
     except Exception as e:
         print(f"❌ Erro ao consultar auto {auto}: {e}")
         return []  # retorna lista vazia em caso de falha
+
+
+def get_dados_auto_cobranca(auto: str, s: requests.Session) -> dict:
+    """
+    Consulta dados de cobrança do auto de infração no SIOR.
+
+    Parâmetros:
+        auto (str): Número do auto de infração (ex: 'S014253902')
+        s (requests.Session): Sessão autenticada com cookies válidos
+
+    Retorna:
+        dict: Dicionário no mesmo formato de get_dados_auto, com chave 'Data' contendo os registros.
+    """
+    try:
+        url = "https://servicos.dnit.gov.br/sior/Cobranca/CobrancaConsulta/List"
+        params = {
+            "sort": "",
+            "page": 1,
+            "pageSize": 10,
+            "group": "",
+            "filter": "",
+            "numeroauto": auto,
+            "bind": "true",
+            "calledfromapi": "true",
+            "calledFromApi": "true"
+        }
+        headers = {
+            "Accept": "*/*",
+            "Accept-Encoding": "gzip, deflate, br, zstd",
+            "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
+            "Referer": f"https://servicos.dnit.gov.br/sior/Cobranca/CobrancaConsulta?NumeroAuto={auto}&Bind=true&Page=1&PageSize=10",
+            "Sec-Fetch-Dest": "empty",
+            "Sec-Fetch-Mode": "cors",
+            "Sec-Fetch-Site": "same-origin",
+            "X-Requested-With": "XMLHttpRequest",
+            "sec-ch-ua": '"Not)A;Brand";v="8", "Chromium";v="138", "Google Chrome";v="138"',
+            "sec-ch-ua-mobile": "?0",
+            "sec-ch-ua-platform": '"Windows"'
+        }
+
+        response = s.get(url, params=params, headers=headers)
+        if response.status_code == 200:
+            data = response.json()
+            if 'Data' in data and isinstance(data['Data'], list):
+                return data
+            else:
+                print(f"❌ Resposta inesperada para {auto}: {data}")
+                return {"Data": []}
+        else:
+            print(f"❌ Erro HTTP {response.status_code} ao consultar auto cobrança {auto}")
+            return {"Data": []}
+    except Exception as e:
+        print(f"❌ Erro ao consultar auto cobrança {auto}: {e}")
+        return {"Data": []}

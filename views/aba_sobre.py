@@ -50,6 +50,8 @@ def aba_sobre(ft, HEADING_FONT_SIZE, DEFAULT_FONT_SIZE):
     )
 
     return ft.Column([
+        ft.Row([ft.Text("Ajuda > Sobre", size=10, weight="bold")], alignment="center"),
+        ft.Divider(),
         texto_ajuda,
         descricao_geral,
         ft.Divider(),

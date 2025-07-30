@@ -177,11 +177,13 @@ def aba_download(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page):
     btn_download.on_click = run_download
 
     return ft.Column([
-        ft.Text("📥 DOWNLOAD DE RELATÓRIOS", size=HEADING_FONT_SIZE, weight="bold"),
+        ft.Row([ft.Text("SIOR > Download de Relatórios", size=10, weight="bold")], alignment="center"),
+        ft.Divider(),
         input_download,
         ft.Row([check_financeiro, check_resumido], alignment="start"),
         ft.Row([btn_download], alignment="center"),
         status_download,
         progress_download,
+        ft.Divider(),
         log_download
     ], expand=True)

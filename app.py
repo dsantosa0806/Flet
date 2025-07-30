@@ -4,6 +4,9 @@ from views.aba_consulta_sior import aba_consulta
 from views.aba_download import aba_download
 from views.aba_sobre import aba_sobre
 from config import DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, WINDOW_WIDTH, WINDOW_HEIGHT, APP_TITLE
+from views.aba_inicial import aba_inicial
+from views.aba_consulta_sior_cobranca import aba_consulta_auto_cobranca
+from views.aba_copia_pa import aba_copia_pa
 
 
 def construir_cabecalho(toggle_switch):
@@ -11,23 +14,6 @@ def construir_cabecalho(toggle_switch):
         ft.Text(APP_TITLE, size=HEADING_FONT_SIZE, weight="bold"),
         toggle_switch
     ])
-
-
-def construir_abas(page):
-    return ft.Tabs(
-        selected_index=0,
-        animation_duration=200,
-        tabs=[
-            ft.Tab(text="Consulta AIT", content=aba_consulta(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE,
-                                                             page)),
-            ft.Tab(text="Download de Relatórios", content=aba_download(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE,
-                                                                       page)),
-            ft.Tab(text="Consulta Crédito Sapiens", content=aba_consulta_sapiens(ft, DEFAULT_FONT_SIZE,
-                                                                                 HEADING_FONT_SIZE, page)),
-            ft.Tab(text="Sobre", content=aba_sobre(ft, HEADING_FONT_SIZE, DEFAULT_FONT_SIZE)),
-        ],
-        expand=1
-    )
 
 
 def main(page: ft.Page):
@@ -39,6 +25,7 @@ def main(page: ft.Page):
     page.theme_mode = "dark"
     page.window_resizable = True
 
+    # Alternância de tema
     def toggle_theme(e):
         page.theme_mode = "dark" if page.theme_mode == "light" else "light"
         toggle_switch.label = "🌙 Modo Escuro" if page.theme_mode == "light" else "🌞 Modo Claro"
@@ -51,29 +38,108 @@ def main(page: ft.Page):
         tooltip="Alternar claro/escuro"
     )
 
-    # dentro do seu main():
-    conteudo_limitado = ft.Container(
-        content=ft.Column([
-            construir_cabecalho(toggle_switch),
-            construir_abas(page)
-        ], expand=True),
-        height=800,  # 👈 limita a altura
-        expand=False,
+    # Cabeçalho com título e botão de tema
+    cabecalho = ft.Row([
+        ft.Text(APP_TITLE, size=HEADING_FONT_SIZE, weight="bold"),
+        ft.Container(expand=True),
+        toggle_switch
+    ])
 
-    )
-    # Dialogo global para exibir alertas
-    dialogo_global = ft.AlertDialog(
-        modal=True,
-        title=ft.Text(""),
-        content=ft.Text(""),
-        actions=[ft.TextButton("OK")],
-        actions_alignment="end"
-    )
+    conteudo_abas = ft.Container(expand=True)
 
-    page.dialog = dialogo_global
+    # Callback para mudar conteúdo
+    def atualizar_conteudo(opcao: str):
+        if opcao == "SIOR_Consulta":
+            conteudo_abas.content = aba_consulta(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page)
+        elif opcao == "SIOR_Download":
+            conteudo_abas.content = aba_download(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page)
+        elif opcao == "Sapiens_Consulta":
+            conteudo_abas.content = aba_consulta_sapiens(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page)
+        elif opcao == "Sapiens_Copia_Pa":
+            conteudo_abas.content = aba_copia_pa(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page)
+        elif opcao == "Sobre":
+            conteudo_abas.content = aba_sobre(ft, HEADING_FONT_SIZE, DEFAULT_FONT_SIZE)
+        elif opcao == "Inicio":
+            conteudo_abas.content = aba_inicial(ft, HEADING_FONT_SIZE, DEFAULT_FONT_SIZE, page)
+        elif opcao == "SIOR_Consulta_Cobranca":
+            conteudo_abas.content = aba_consulta_auto_cobranca(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page)
+        page.update()
 
-    page.add(conteudo_limitado)
-    page.add(dialogo_global)
+    # Menu principal e submenu
+    menu = ft.Row([
+
+        ft.PopupMenuButton(
+            content=ft.Text("SIOR"),
+            tooltip="",
+            menu_padding=0,
+            menu_position=ft.PopupMenuPosition.UNDER,  # CORRETO
+            items=[
+                ft.PopupMenuItem(
+                    text="Consulta Auto de Infração",
+                    on_click=lambda e: atualizar_conteudo("SIOR_Consulta"),
+                    checked=False
+                ),
+                ft.PopupMenuItem(),
+                ft.PopupMenuItem(
+                    text="Consulta Auto de Infração (Cobrança)",
+                    on_click=lambda e: atualizar_conteudo("SIOR_Consulta_Cobranca"),
+                    checked=False
+                ),
+                ft.PopupMenuItem(),
+                ft.PopupMenuItem(
+                    text="Download Relatórios",
+                    on_click=lambda e: atualizar_conteudo("SIOR_Download"),
+                    checked=False
+                ),
+
+            ]
+        ),
+        ft.PopupMenuButton(
+            content=ft.Text("Sapiens"),
+            tooltip="",
+            menu_padding=0,
+            menu_position=ft.PopupMenuPosition.UNDER,
+            items=[
+                ft.PopupMenuItem(
+                    text="Consulta Créditos",
+                    on_click=lambda e: atualizar_conteudo("Sapiens_Consulta"),
+                    checked=False
+                ),
+                ft.PopupMenuItem(),
+                ft.PopupMenuItem(
+                    text="Download P.A's",
+                    on_click=lambda e: atualizar_conteudo("Sapiens_Copia_Pa"),
+                    checked=False
+                ),
+
+            ]
+        ),
+        ft.PopupMenuButton(
+            content=ft.Text("Ajuda"),
+            tooltip="",
+            menu_padding=0,
+            menu_position=ft.PopupMenuPosition.UNDER,
+            items=[
+                ft.PopupMenuItem(
+                    text="Sobre",
+                    on_click=lambda e: atualizar_conteudo("Sobre"),
+                    checked=False
+                )
+            ]
+        )
+    ])
+
+    # Conteúdo inicial padrão
+    atualizar_conteudo("Inicio")
+
+    layout = ft.Column([
+        cabecalho,
+        menu,
+        ft.Divider(),
+        conteudo_abas
+    ], expand=True)
+
+    page.add(layout)
 
 
 if __name__ == "__main__":
