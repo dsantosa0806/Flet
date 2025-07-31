@@ -38,6 +38,20 @@ def aba_sobre(ft, HEADING_FONT_SIZE, DEFAULT_FONT_SIZE):
         size=DEFAULT_FONT_SIZE
     )
 
+    titulo_painel_supervisor = ft.Text("📊 Aba 'Painel Supervisor'", weight="bold", size=DEFAULT_FONT_SIZE)
+    conteudo_painel_supervisor = ft.Text(
+        "- Selecione a equipe desejada na lista suspensa.\n"
+        "- Clique em 'Consultar' para extrair os dados relacionados à equipe no sistema SIOR.\n"
+        "- Serão exibidos cartões com o total por Situação Fase e indicadores organizados em abas.\n"
+        "- Utilize o botão 'Exportar Excel' para gerar um arquivo contendo:\n"
+        "    • Todos os dados extraídos;\n"
+        "    • Resumo por técnico, fase, e datas de análise/conferência;\n"
+        "    • Distribuição por devedor (quantidade e valor);\n"
+        "    • Cruzamento entre Técnico e Situação Fase;\n"
+        "- Os dados podem ser utilizados para acompanhamento e tomada de decisão da equipe.",
+        size=DEFAULT_FONT_SIZE
+    )
+
     titulo_erros = ft.Text("⚠️ Em caso de erros ou problemas", weight="bold", size=DEFAULT_FONT_SIZE)
     conteudo_erros = ft.Text(
         "- O Chrome deverá sempre estar atualizado para o correto funcionamento da aplicação.\n"
@@ -63,6 +77,9 @@ def aba_sobre(ft, HEADING_FONT_SIZE, DEFAULT_FONT_SIZE):
         ft.Divider(),
         titulo_sapiens,
         conteudo_sapiens,
+        ft.Divider(),
+        titulo_painel_supervisor,
+        conteudo_painel_supervisor,
         ft.Divider(),
         titulo_erros,
         conteudo_erros,
