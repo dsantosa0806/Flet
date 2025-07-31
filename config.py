@@ -1,7 +1,7 @@
 import os
 
 current_version = '1.2.0.1'
-URL_VERSAO = "https://github.com/dsantosa0806/Flet/blob/main/public/version.json"
+URL_VERSAO = "https://dsantosa0806.github.io/Flet/docs/version.json"
 
 diretorio = r'C:\\'
 pasta_arquivos = r'C:\Extracao-Relatorio-Financeiro-Processo-Arquivos'
