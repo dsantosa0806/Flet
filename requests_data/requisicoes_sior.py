@@ -220,7 +220,7 @@ def get_acompanhamento_sior(equipe_id, s):
             "calledFromApi": "true"
         }
         try:
-            response = s.get(url, params=params)
+            response = s.get(url, params=params, timeout=60)
             response.raise_for_status()
             json_data = response.json()
             dados = json_data.get("Data", [])
@@ -229,9 +229,12 @@ def get_acompanhamento_sior(equipe_id, s):
             if len(todos_dados) >= total:
                 break
             page += 1
+        except requests.exceptions.HTTPError as e:
+            if e.response is not None and e.response.status_code == 500:
+                raise RuntimeError("Erro no servidor ao consultar acompanhamento. Tente novamente mais tarde.")
+            raise RuntimeError(f"Erro HTTP: {e}")
         except Exception as e:
-            print(f"Erro na requisição página {page}: {e}")
-            break
+            raise RuntimeError(f"Erro na requisição página {page}: {e}")
 
     return todos_dados
 
@@ -255,7 +258,7 @@ def get_valores_original(equipe_id, s):
             "calledFromApi": "true"
         }
         try:
-            response = s.get(url, params=params)
+            response = s.get(url, params=params, timeout=60)
             response.raise_for_status()
             json_data = response.json()
             dados = json_data.get("Data", [])
@@ -264,9 +267,12 @@ def get_valores_original(equipe_id, s):
             if len(todos_valores) >= total:
                 break
             page += 1
+        except requests.exceptions.HTTPError as e:
+            if e.response is not None and e.response.status_code == 500:
+                raise RuntimeError("Erro no servidor ao consultar valores originais. Tente novamente mais tarde.")
+            raise RuntimeError(f"Erro HTTP: {e}")
         except Exception as e:
-            print(f"Erro na requisição de valores página {page}: {e}")
-            break
+            raise RuntimeError(f"Erro na requisição de valores página {page}: {e}")
 
     return todos_valores
 

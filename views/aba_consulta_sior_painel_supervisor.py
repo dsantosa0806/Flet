@@ -86,7 +86,22 @@ def aba_consulta_sior_painel_supervisor(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE
 
     def exportar_excel(e):
         try:
+            def formatar_cpf_cnpj(numero: str) -> str:
+                if pd.isna(numero):
+                    return ""
+                numero = ''.join(filter(str.isdigit, str(numero)))
+                if len(numero) == 11:
+                    return f"{numero[:3]}.{numero[3:6]}.{numero[6:9]}-{numero[9:]}"
+                elif len(numero) == 14:
+                    return f"{numero[:2]}.{numero[2:5]}.{numero[5:8]}/{numero[8:12]}-{numero[12:]}"
+                return numero
+
             df = pd.DataFrame(dados_tabela)
+
+            # Aplicar no DataFrame
+            if "DevedorNumeroInscricao" in df.columns:
+                df["DevedorNumeroInscricaoFormatado"] = df["DevedorNumeroInscricao"].apply(formatar_cpf_cnpj)
+
             df["DataAnalise"] = pd.to_datetime(df["DataAnalise"], errors="coerce").dt.strftime("%d/%m/%Y")
             df["DataConferencia"] = pd.to_datetime(df["DataConferencia"], errors="coerce").dt.strftime("%d/%m/%Y")
             df["DataDistribuicaoEquipe"] = pd.to_datetime(df["DataDistribuicaoEquipe"],
@@ -134,14 +149,24 @@ def aba_consulta_sior_painel_supervisor(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE
                     if "DevedorIdentificacao" in df_valores and "ValorOriginal" in df_valores:
                         df_valores_resumo = df_valores.groupby("DevedorIdentificacao")["ValorOriginal"].sum().reset_index()
                         df_valores_resumo.rename(columns={"ValorOriginal": "Valor Total à Distribuir"}, inplace=True)
+
                         df_merge = pd.merge(df_saldos, df_valores_resumo, on="DevedorIdentificacao", how="left")
+                        df_merge["DevedorNumeroInscricaoFormatado"] = df_merge["DevedorIdentificacao"].apply(
+                            formatar_cpf_cnpj)
                         df_merge["Valor Total à Distribuir"] = df_merge["Valor Total à Distribuir"].fillna(0).astype(float)
-                        df_merge = df_merge.sort_values("Quantidade à distribuir", ascending=True)
-                        df_merge.to_excel(writer, sheet_name="Equipe Cadastro Sapiens", index=False)
+
+                        df_merge = df_merge.sort_values("Valor Total à Distribuir", ascending=False)
+
+                        # Reordenar para colocar o campo formatado como primeiro
+                        cols = ["DevedorNumeroInscricaoFormatado"] + [col for col in df_merge.columns if
+                                                                      col != "DevedorNumeroInscricaoFormatado"]
+                        df_merge = df_merge[cols]
+
+                        df_merge.to_excel(writer, sheet_name="Fase - Equipe Cadastro Sapiens", index=False)
                     else:
-                        df_saldos.to_excel(writer, sheet_name="Equipe Cadastro Sapiens", index=False)
+                        df_saldos.to_excel(writer, sheet_name="Fase - Equipe Cadastro Sapiens", index=False)
                 else:
-                    df_saldos.to_excel(writer, sheet_name="Equipe Cadastro Sapiens", index=False)
+                    df_saldos.to_excel(writer, sheet_name="Fase - Equipe Cadastro Sapiens", index=False)
 
                 # 🆕 Nova aba: Distribuição por Devedor
                 df_aberto_filtro = df[df["SituacaoFase"] == "Em Aberto / Equipe Cadastro Sapiens"]
@@ -157,9 +182,17 @@ def aba_consulta_sior_painel_supervisor(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE
                     "Qtd Em Aberto / Equipe Cadastro Sapiens"].astype(int)
                 df_dist["Qtd Outras Situações"] = df_dist["Qtd Outras Situações"].astype(int)
 
-                df_dist = df_dist.sort_values("Qtd Em Aberto / Equipe Cadastro Sapiens", ascending=True)
+                # ➕ Aplicar campo formatado
+                df_dist["DevedorNumeroInscricaoFormatado"] = df_dist["DevedorIdentificacao"].apply(formatar_cpf_cnpj)
 
-                df_dist.to_excel(writer, sheet_name="Distribuição por Devedor", index=False)
+                # ➕ Colocar como primeira coluna
+                cols = ["DevedorNumeroInscricaoFormatado"] + [col for col in df_dist.columns if
+                                                              col != "DevedorNumeroInscricaoFormatado"]
+                df_dist = df_dist[cols]
+
+                df_dist = df_dist.sort_values("Qtd Em Aberto / Equipe Cadastro Sapiens", ascending=False)
+
+                df_dist.to_excel(writer, sheet_name="Devedores à distribuir", index=False)
             page.dialog = alerta_dialogo
             mostrar_alerta(ft,
                            page,
@@ -207,6 +240,8 @@ def aba_consulta_sior_painel_supervisor(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE
                                      for k, v in item.items()} for item in dados)
                 status.value = f"✅ {len(dados_tabela)} registros encontrados."
                 preencher_tabela()
+            except RuntimeError as ex:
+                status.value = f"❌ {str(ex)}"
             except Exception as ex:
                 status.value = f"❌ Erro: {ex}"
             finally:

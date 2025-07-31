@@ -1,6 +1,7 @@
 import threading
 import flet as ft
 
+
 def mostrar_alerta(ft, page, titulo: str, mensagem: str, tipo="info", duracao=3):
     """
     Exibe um alerta modal (popup) por até X segundos.
