@@ -239,6 +239,31 @@ def aba_consulta_sior_painel_supervisor(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE
                     # ➕ Exporta para nova aba
                     tabela_cruzada.to_excel(writer, sheet_name="Técnicos x Situação", index=False)
 
+                # 🆕 Nova aba: Produtividade
+                if all(col in df.columns for col in
+                       ["DataAnalise", "SituacaoFase", "TecnicoAnalise", "CodigoProcessoInfracao"]):
+                    df_prod = df[df["SituacaoFase"] == "Em Aberto / Cadastrado Sapiens"].copy()
+
+                    # Garante que as colunas principais não estejam nulas
+                    df_prod = df_prod.dropna(subset=["DataAnalise", "TecnicoAnalise", "CodigoProcessoInfracao"])
+
+                    # Converte para data apenas
+                    df_prod["DataAnalise"] = pd.to_datetime(df_prod["DataAnalise"],
+                                                            dayfirst=True, errors="coerce").dt.strftime("%d/%m/%Y")
+
+                    if not df_prod.empty:
+                        produtividade = pd.pivot_table(
+                            df_prod,
+                            index="DataAnalise",
+                            columns="TecnicoAnalise",
+                            values="CodigoProcessoInfracao",
+                            aggfunc="count",
+                            fill_value=0
+                        ).sort_index()
+
+                        if not produtividade.empty:
+                            produtividade.to_excel(writer, sheet_name="Prod. Fase - Cad. Sapiens")
+
             page.dialog = alerta_dialogo
             mostrar_alerta(ft,
                            page,
