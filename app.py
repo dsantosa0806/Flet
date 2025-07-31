@@ -1,6 +1,7 @@
 import flet as ft
 from views.aba_consulta_sapiens_divida import aba_consulta_sapiens
 from views.aba_consulta_sior import aba_consulta
+from views.aba_consulta_sior_painel_supervisor import aba_consulta_sior_painel_supervisor
 from views.aba_download import aba_download
 from views.aba_sobre import aba_sobre
 from config import DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, WINDOW_WIDTH, WINDOW_HEIGHT, APP_TITLE
@@ -63,6 +64,8 @@ def main(page: ft.Page):
             conteudo_abas.content = aba_inicial(ft, HEADING_FONT_SIZE, DEFAULT_FONT_SIZE, page)
         elif opcao == "SIOR_Consulta_Cobranca":
             conteudo_abas.content = aba_consulta_auto_cobranca(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page)
+        elif opcao == "SIOR_Consulta_Painel_Super":
+            conteudo_abas.content = aba_consulta_sior_painel_supervisor(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page)
         page.update()
 
     # Menu principal e submenu
@@ -89,6 +92,12 @@ def main(page: ft.Page):
                 ft.PopupMenuItem(
                     text="Download Relatórios",
                     on_click=lambda e: atualizar_conteudo("SIOR_Download"),
+                    checked=False
+                ),
+                ft.PopupMenuItem(),
+                ft.PopupMenuItem(
+                    text="Painel Supervisor",
+                    on_click=lambda e: atualizar_conteudo("SIOR_Consulta_Painel_Super"),
                     checked=False
                 ),
 

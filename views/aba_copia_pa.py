@@ -154,7 +154,11 @@ def aba_copia_pa(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page):
 
                 status.value = "✅ Concluído!"
                 page.dialog = alerta_dialogo
-                mostrar_alerta(ft, page, "Download concluído", f"{total} documentos disponíveis em C:\\Downloads.", tipo="success")
+                mostrar_alerta(ft,
+                               page,
+                               "Download concluído",
+                               f"{total} documentos disponíveis em C:\\Downloads.",
+                               tipo="success")
 
             except Exception as ex:
                 log_execucao.value += f"❌ Erro: {ex}"

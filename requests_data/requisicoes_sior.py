@@ -199,3 +199,75 @@ def get_dados_auto_cobranca(auto: str, s: requests.Session) -> dict:
     except Exception as e:
         print(f"❌ Erro ao consultar auto cobrança {auto}: {e}")
         return {"Data": []}
+
+
+def get_acompanhamento_sior(equipe_id, s):
+    url = "https://servicos.dnit.gov.br/sior/Cobranca/SupervisaoSapiensAcompanhamento/List"
+    page = 1
+    page_size = 1000
+    todos_dados = []
+
+    while True:
+        params = {
+            "sort": "",
+            "page": page,
+            "pageSize": page_size,
+            "group": "",
+            "filter": "",
+            "equipeselecionada": equipe_id,
+            "bind": "true",
+            "calledfromapi": "true",
+            "calledFromApi": "true"
+        }
+        try:
+            response = s.get(url, params=params)
+            response.raise_for_status()
+            json_data = response.json()
+            dados = json_data.get("Data", [])
+            todos_dados.extend(dados)
+            total = json_data.get("Total", len(todos_dados))
+            if len(todos_dados) >= total:
+                break
+            page += 1
+        except Exception as e:
+            print(f"Erro na requisição página {page}: {e}")
+            break
+
+    return todos_dados
+
+
+def get_valores_original(equipe_id, s):
+    url = "https://servicos.dnit.gov.br/sior/Cobranca/SupervisaoSapiensDistribuicao/List"
+    page = 1
+    page_size = 1000
+    todos_valores = []
+
+    while True:
+        params = {
+            "sort": "",
+            "page": page,
+            "pageSize": page_size,
+            "group": "",
+            "filter": "",
+            "equipeselecionada": equipe_id,
+            "fase": 32,
+            "calledfromapi": "true",
+            "calledFromApi": "true"
+        }
+        try:
+            response = s.get(url, params=params)
+            response.raise_for_status()
+            json_data = response.json()
+            dados = json_data.get("Data", [])
+            todos_valores.extend(dados)
+            total = json_data.get("Total", len(todos_valores))
+            if len(todos_valores) >= total:
+                break
+            page += 1
+        except Exception as e:
+            print(f"Erro na requisição de valores página {page}: {e}")
+            break
+
+    return todos_valores
+
+
