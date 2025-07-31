@@ -1,6 +1,4 @@
 import flet as ft
-
-from requests_data.requisicoes_version import verificar_versao
 from views.aba_consulta_sapiens_divida import aba_consulta_sapiens
 from views.aba_consulta_sior import aba_consulta
 from views.aba_consulta_sior_painel_supervisor import aba_consulta_sior_painel_supervisor
@@ -20,7 +18,14 @@ def construir_cabecalho(toggle_switch):
 
 
 def main(page: ft.Page):
-    verificar_versao(ft, page)
+    dialogo_versao = ft.AlertDialog(
+        modal=True,
+        title=ft.Text(""),
+        content=ft.Text(""),
+        actions=[],
+        open=False
+    )
+    page.dialog = dialogo_versao
     page.title = APP_TITLE
     page.window_width = WINDOW_WIDTH
     page.window_height = WINDOW_HEIGHT
@@ -148,7 +153,8 @@ def main(page: ft.Page):
         cabecalho,
         menu,
         ft.Divider(),
-        conteudo_abas
+        conteudo_abas,
+        dialogo_versao
     ], expand=True)
 
     page.add(layout)
