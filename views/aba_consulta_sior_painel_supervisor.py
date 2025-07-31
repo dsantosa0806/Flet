@@ -1,13 +1,34 @@
 import threading
-import flet as ft
+import json
 import pandas as pd
 from navegador.sior_selenium_execution import iniciar_sessao_sior
 from requests_data.requisicoes_sior import get_acompanhamento_sior, get_valores_original
 from collections import Counter
 from datetime import datetime
 import os
-
+import config
 from utils.popups import mostrar_alerta
+
+CACHE_PATH_SUPERVISOR = config.CACHE_PATH_SUPERVISOR
+
+
+def salvar_preferencias(equipe_id: str):
+    try:
+        with open(CACHE_PATH_SUPERVISOR, "w", encoding="utf-8") as f:
+            json.dump({"ultima_equipe": equipe_id}, f)
+    except Exception as e:
+        print(f"Erro ao salvar preferências: {e}")
+
+
+def carregar_preferencias():
+    try:
+        if os.path.exists(CACHE_PATH_SUPERVISOR):
+            with open(CACHE_PATH_SUPERVISOR, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                return data.get("ultima_equipe")
+    except Exception as e:
+        print(f"Erro ao carregar preferências: {e}")
+    return None
 
 
 # === NOVA ABA DE SUPERVISOR ===
@@ -27,6 +48,10 @@ def aba_consulta_sior_painel_supervisor(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE
         ],
         width=300
     )
+    # Aplicar equipe salva anteriormente
+    equipe_salva = carregar_preferencias()
+    if equipe_salva:
+        dropdown_equipes.value = equipe_salva
 
     btn_consultar = ft.ElevatedButton("Consultar", icon=ft.Icons.SEARCH)
     btn_exportar = ft.ElevatedButton("Exportar Excel", icon=ft.Icons.SAVE, visible=False)
@@ -193,6 +218,27 @@ def aba_consulta_sior_painel_supervisor(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE
                 df_dist = df_dist.sort_values("Qtd Em Aberto / Equipe Cadastro Sapiens", ascending=False)
 
                 df_dist.to_excel(writer, sheet_name="Devedores à distribuir", index=False)
+
+                # 🆕 Nova aba: Técnicos x Situação Fase
+                if "TecnicoAnalise" in df.columns and "SituacaoFase" in df.columns:
+                    tabela_cruzada = pd.pivot_table(
+                        df,
+                        values="CodigoProcessoInfracao",  # qualquer coluna identificadora
+                        index="TecnicoAnalise",
+                        columns="SituacaoFase",
+                        aggfunc="count",
+                        fill_value=0
+                    )
+
+                    # ➕ Adiciona coluna de total
+                    tabela_cruzada["Total"] = tabela_cruzada.sum(axis=1)
+
+                    # ➕ Reseta o index para exportar corretamente
+                    tabela_cruzada = tabela_cruzada.reset_index()
+
+                    # ➕ Exporta para nova aba
+                    tabela_cruzada.to_excel(writer, sheet_name="Técnicos x Situação", index=False)
+
             page.dialog = alerta_dialogo
             mostrar_alerta(ft,
                            page,
@@ -210,6 +256,7 @@ def aba_consulta_sior_painel_supervisor(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE
         nonlocal dados_tabela, valores_equipes_saldos
 
         equipe_id = dropdown_equipes.value
+        salvar_preferencias(equipe_id)
         if not equipe_id:
             status.value = "⚠ Selecione uma equipe."
             status.visible = True
