@@ -52,6 +52,8 @@ def aba_inicial(ft, HEADING_FONT_SIZE, DEFAULT_FONT_SIZE, page):
             ),
             on_tap=lambda e: page.launch_url("https://support.google.com/chrome/answer/95414")),
         ft.Text("• Evite usar o SIOR ou Sapiens manualmente enquanto o RPA estiver rodando.", size=DEFAULT_FONT_SIZE),
+        ft.Text("• Após o inicío de cada Consulta/Download,"
+                " a navegação ficará desabilitada até finalizar todo o processamento.", size=DEFAULT_FONT_SIZE),
         ft.GestureDetector(
             content=ft.Text(
                 "• Clique aqui para assistir ao vídeo explicativo",
