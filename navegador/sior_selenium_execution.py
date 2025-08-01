@@ -147,7 +147,7 @@ def iniciar_sessao_sior(log=None):
 
             log_print("⏳ Aguarde 5 segundos para realizar o login manual...")
             import time
-            time.sleep(5)
+            time.sleep(2)
 
             # Após login manual, salva cookies e reinicia em headless
             store_cookies(navegador)
