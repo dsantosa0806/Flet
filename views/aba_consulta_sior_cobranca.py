@@ -8,7 +8,7 @@ from requests_data.requisicoes_sior import get_dados_auto_cobranca
 from utils.popups import mostrar_alerta
 
 
-def aba_consulta_auto_cobranca(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page):
+def aba_consulta_auto_cobranca(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page, bloquear, desbloquear):
     tabela_resultados = []
     pagina_atual = 1
     itens_por_pagina = 3
@@ -182,6 +182,7 @@ def aba_consulta_auto_cobranca(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page):
 
         def task():
             try:
+                bloquear()
                 navegador, session = iniciar_sessao_sior()
                 total = len(codigos)
                 for idx, codigo in enumerate(codigos, 1):
@@ -211,6 +212,7 @@ def aba_consulta_auto_cobranca(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page):
                 progress.visible = False
                 expander_input.initially_expanded = False
                 expander_input.expanded = False
+                desbloquear()
                 page.update()
 
         threading.Thread(target=task).start()

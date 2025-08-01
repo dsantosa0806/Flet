@@ -130,7 +130,7 @@ def exportar_para_excel(ft,
 
 
 # === ABA ===
-def aba_consulta_sapiens(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page):
+def aba_consulta_sapiens(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page, bloquear, desbloquear):
     # Estado
     page_index = 1
     items_per_page = 3
@@ -284,6 +284,7 @@ def aba_consulta_sapiens(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page):
         def task():
             nonlocal paginated, all_records, page_index
             try:
+                bloquear()
 
                 nav = webdriver.Chrome(options=options_nav())
                 nav.minimize_window()
@@ -328,6 +329,7 @@ def aba_consulta_sapiens(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page):
                 progress_doc.visible = False
                 btn_consultar_doc.disabled = False
                 btn_consultar_doc.text = "Consultar novamente"
+                desbloquear()
                 page.update()
 
         threading.Thread(target=task).start()

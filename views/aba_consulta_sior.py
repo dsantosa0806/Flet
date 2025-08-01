@@ -9,7 +9,7 @@ from utils.popups import mostrar_alerta
 
 
 # === ABA DE CONSULTA DE AIT ===
-def aba_consulta(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page):
+def aba_consulta(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page, bloquear, desbloquear):
     # === ESTADO GLOBAL LOCAL ===
     tabela_resultados = []
     pagina_atual = 1
@@ -215,6 +215,7 @@ def aba_consulta(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page):
 
         def task():
             try:
+                bloquear()
                 navegador, session = iniciar_sessao_sior()
                 total = len(codigos)
                 for idx, codigo in enumerate(codigos, start=1):
@@ -245,7 +246,7 @@ def aba_consulta(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page):
                 progress_consulta.visible = False
                 expander_input_consulta.expanded = False  # 👈 colapsa de verdade
                 expander_input_consulta.update()  # 👈 redesenha só o tile
-
+                desbloquear()
                 page.update()  # 👈 redesenha a página
 
         threading.Thread(target=task).start()

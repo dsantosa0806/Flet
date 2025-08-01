@@ -84,7 +84,7 @@ def executar_fluxo_completo(codigos_input,
 
 
 # === UI COMPONENTE - ABA DE DOWNLOAD ===
-def aba_download(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page):
+def aba_download(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page, bloquear, desbloquear):
     # COMPONENTES
     input_download = ft.TextField(
         label="Número do AIT (um por linha)", multiline=True,
@@ -129,6 +129,7 @@ def aba_download(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page):
 
         def task():
             try:
+                bloquear()
                 total = len(codigos)
                 status_download.value = f"Iniciando processamento de {total} AITs..."
                 page.update()
@@ -154,6 +155,7 @@ def aba_download(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page):
             finally:
                 btn_download.disabled = False
                 btn_download.text = "Iniciar Processo"
+                desbloquear()
                 page.update()
 
         threading.Thread(target=task).start()

@@ -18,6 +18,8 @@ def construir_cabecalho(toggle_switch):
 
 
 def main(page: ft.Page):
+    bloqueio_navegacao = ft.Ref[bool]()
+    bloqueio_navegacao.current = False
     dialogo_versao = ft.AlertDialog(
         modal=True,
         title=ft.Text(""),
@@ -56,24 +58,45 @@ def main(page: ft.Page):
 
     conteudo_abas = ft.Container(expand=True)
 
+    def bloquear():
+        bloqueio_navegacao.current = True
+
+    def desbloquear():
+        bloqueio_navegacao.current = False
+
     # Callback para mudar conteúdo
     def atualizar_conteudo(opcao: str):
-        if opcao == "SIOR_Consulta":
-            conteudo_abas.content = aba_consulta(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page)
-        elif opcao == "SIOR_Download":
-            conteudo_abas.content = aba_download(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page)
-        elif opcao == "Sapiens_Consulta":
-            conteudo_abas.content = aba_consulta_sapiens(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page)
-        elif opcao == "Sapiens_Copia_Pa":
-            conteudo_abas.content = aba_copia_pa(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page)
-        elif opcao == "Sobre":
-            conteudo_abas.content = aba_sobre(ft, HEADING_FONT_SIZE, DEFAULT_FONT_SIZE)
-        elif opcao == "Inicio":
-            conteudo_abas.content = aba_inicial(ft, HEADING_FONT_SIZE, DEFAULT_FONT_SIZE, page)
-        elif opcao == "SIOR_Consulta_Cobranca":
-            conteudo_abas.content = aba_consulta_auto_cobranca(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page)
-        elif opcao == "SIOR_Consulta_Painel_Super":
-            conteudo_abas.content = aba_consulta_sior_painel_supervisor(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page)
+        if bloqueio_navegacao.current:
+            page.snack_bar = ft.SnackBar(ft.Text("⚠ Aguarde a finalização do processo atual antes de trocar de aba."),
+                                         bgcolor=ft.Colors.AMBER)
+            page.snack_bar.open = True
+            page.update()
+            return
+
+        match opcao:
+            case "SIOR_Consulta":
+                conteudo_abas.content = aba_consulta(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page, bloquear,
+                                                     desbloquear)
+            case "SIOR_Download":
+                conteudo_abas.content = aba_download(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page, bloquear,
+                                                     desbloquear)
+            case "Sapiens_Consulta":
+                conteudo_abas.content = aba_consulta_sapiens(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page, bloquear,
+                                                             desbloquear)
+            case "Sapiens_Copia_Pa":
+                conteudo_abas.content = aba_copia_pa(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page, bloquear,
+                                                     desbloquear)
+            case "Sobre":
+                conteudo_abas.content = aba_sobre(ft, HEADING_FONT_SIZE, DEFAULT_FONT_SIZE)
+            case "Inicio":
+                conteudo_abas.content = aba_inicial(ft, HEADING_FONT_SIZE, DEFAULT_FONT_SIZE, page)
+            case "SIOR_Consulta_Cobranca":
+                conteudo_abas.content = aba_consulta_auto_cobranca(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page,
+                                                                   bloquear, desbloquear)
+            case "SIOR_Consulta_Painel_Super":
+                conteudo_abas.content = aba_consulta_sior_painel_supervisor(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE,
+                                                                            page, bloquear, desbloquear)
+
         page.update()
 
     # Menu principal e submenu

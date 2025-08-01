@@ -89,7 +89,7 @@ def login(navegador):
     try:
         WebDriverWait(navegador, 120).until(EC.presence_of_element_located((By.XPATH, path_btn_entrar_gov))).click()
         WebDriverWait(navegador, 120).until(EC.presence_of_element_located((By.XPATH, qr_code_path))).click()
-        WebDriverWait(navegador, 120).until(EC.presence_of_element_located((By.XPATH, logado))).is_displayed()
+        WebDriverWait(navegador, 180).until(EC.presence_of_element_located((By.XPATH, logado))).is_displayed()
     except Exception as e:
         print(f"Erro no login manual: {e}")
         return 1

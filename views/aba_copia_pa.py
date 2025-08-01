@@ -45,7 +45,7 @@ def verificar_download_concluido(nome_arquivo: str, timeout=50, intervalo=1) -> 
     return False
 
 
-def aba_copia_pa(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page):
+def aba_copia_pa(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page, bloquear, desbloquear):
     cached_user, cached_pass = carregar_credenciais()
 
     alerta_dialogo = ft.AlertDialog(
@@ -117,7 +117,7 @@ def aba_copia_pa(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page):
 
         def task():
             try:
-
+                bloquear()
                 navegador = webdriver.Chrome(options=options_nav())
                 navegador.minimize_window()
                 navegador, cookies = sapiens_login(navegador, user_input, pass_input)
@@ -169,6 +169,7 @@ def aba_copia_pa(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page):
                 btn_iniciar.disabled = False
                 btn_iniciar.text = "Novo Download"
                 progress.visible = False
+                desbloquear()
                 page.update()
 
         threading.Thread(target=task).start()

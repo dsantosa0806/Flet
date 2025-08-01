@@ -32,7 +32,7 @@ def carregar_preferencias():
 
 
 # === NOVA ABA DE SUPERVISOR ===
-def aba_consulta_sior_painel_supervisor(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page):
+def aba_consulta_sior_painel_supervisor(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page, bloquear, desbloquear):
     dados_tabela = []
     valores_equipes_saldos = []
     alerta_dialogo = ft.AlertDialog(modal=True, title=ft.Text(""), content=ft.Text(""), actions=[], open=False)
@@ -300,6 +300,7 @@ def aba_consulta_sior_painel_supervisor(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE
         def task():
             nonlocal valores_equipes_saldos
             try:
+                bloquear()
                 status.value = "Iniciando Login"
                 navegador, session = iniciar_sessao_sior()
                 status.value = "Iniciando Varredura de dados..."
@@ -319,6 +320,7 @@ def aba_consulta_sior_painel_supervisor(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE
             finally:
                 btn_consultar.disabled = False
                 progress.visible = False
+                desbloquear()
                 page.update()
 
         threading.Thread(target=task).start()
