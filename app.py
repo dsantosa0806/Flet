@@ -8,6 +8,7 @@ from config import DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, WINDOW_WIDTH, WINDOW_HE
 from views.aba_inicial import aba_inicial
 from views.aba_consulta_sior_cobranca import aba_consulta_auto_cobranca
 from views.aba_copia_pa import aba_copia_pa
+from utils.singleton_process import ja_esta_rodando
 
 
 def construir_cabecalho(toggle_switch):
@@ -184,4 +185,27 @@ def main(page: ft.Page):
 
 
 if __name__ == "__main__":
+    def mostrar_alerta_execucao_duplicada(page: ft.Page):
+        def fechar(e):
+            # ou window_destroy() dependendo do ambiente
+            page.window_close()  # type: ignore
+
+        alerta = ft.AlertDialog(
+            title=ft.Text("⚠ Aplicação já está em execução"),
+            content=ft.Text("Já existe uma instância do RPA em execução.\nFeche-a antes de abrir uma nova."),
+            actions=[ft.TextButton("Fechar", on_click=fechar)],
+            modal=True
+        )
+        page.dialog = alerta
+
+        # ➕ Necessário adicionar algo à página para ela "renderizar"
+        page.add(ft.Text("RPA - já em execução - Feche essa Janela", size=20, weight="bold"))
+        alerta.open = True
+        page.update()
+
+
+    if ja_esta_rodando("RPA"):
+        ft.app(target=lambda page: mostrar_alerta_execucao_duplicada(page))
+        exit()  # impede seguir para main
+
     ft.app(target=main)
