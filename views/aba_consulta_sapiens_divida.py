@@ -47,7 +47,7 @@ def exportar_para_excel(ft,
             'dataVencimento', 'dataInicioMultaMora', 'dataInicioSelic',
             'dataConstituicaoDefinitiva', 'dataNotificacaoInicial',
             'dataDecursoPrazoDefesa', 'dataDocumentoOrigem', 'criadoEm', 'atualizadoEm',
-            'dataInscricaoDivida','dataValidadeAtualizacao', 'dataAtualizacao'
+            'dataInscricaoDivida', 'dataValidadeAtualizacao', 'dataAtualizacao'
         ]
 
         for registro in registros:
@@ -65,7 +65,7 @@ def exportar_para_excel(ft,
             # 📄 Formatando CPF/CNPJ
             doc_raw = registro.get("devedorPrincipal", {}).get("numeroDocumentoPrincipal", "")
             doc_formatado = ""
-            if doc_raw.isdigit():
+            if str(doc_raw).isdigit():
                 if len(doc_raw) == 11:
                     doc_formatado = f"{doc_raw[:3]}.{doc_raw[3:6]}.{doc_raw[6:9]}-{doc_raw[9:]}"
                 elif len(doc_raw) == 14:
@@ -74,56 +74,80 @@ def exportar_para_excel(ft,
                     doc_formatado = doc_raw
             registro["Devedor_DocumentoFormatado"] = doc_formatado
 
-            # 📂 Extraindo NUP da pasta
+            # 📂 NUP
             registro["NUP"] = registro.get("pasta", {}).get("NUP", "")
 
-            # 👤 Extraindo nome de criadoPor e atualizadoPor
+            # 👤 Criado/Atualizado por
             registro["CriadoPor_Nome"] = registro.get("criadoPor", {}).get("nome", "")
             registro["AtualizadoPor_Nome"] = registro.get("atualizadoPor", {}).get("nome", "")
 
-            # 📝 Extraindo descrição da modalidadeDocumentoOrigem
-            registro["ModalidadeDocumentoDescricao"] = registro.get("modalidadeDocumentoOrigem", {}).get("descricao",
-                                                                                                         "")
+            # 📝 Modalidade documento origem
+            registro["ModalidadeDocumentoDescricao"] = registro.get("modalidadeDocumentoOrigem", {}).get("descricao", "")
 
-            # 🔄 Concatenando nome + descrição de faseAtual.especieStatus
-            especie_status = registro.get("faseAtual", {}).get("especieStatus", {})
+            # 🔄 Fase Atual (nome - descrição)
+            especie_status = registro.get("faseAtual", {}).get("especieStatus", {}) or {}
             nome = especie_status.get("nome", "")
             descricao = especie_status.get("descricao", "")
-            if nome or descricao:
-                registro["FaseAtual_Completa"] = f"{nome} - {descricao}".strip(" -")
-            else:
-                registro["FaseAtual_Completa"] = ""
+            registro["FaseAtual_Completa"] = f"{nome} - {descricao}".strip(" -") if (nome or descricao) else ""
 
-            # 🏛️ Extraindo nome do credor
+            # 🏛️ Credor nome
             registro["Credor_Nome"] = registro.get("credor", {}).get("pessoa", {}).get("nome", "")
 
-            # 🌎 Extraindo nome da regional
+            # 🌎 Regional nome
             registro["Regional_Nome"] = registro.get("regional", {}).get("nome", "")
 
-            # 🏢 Concatenando sigla + nome da unidadeResponsavel
-            unidade = registro.get("unidadeResponsavel", {})
+            # 🏢 Unidade Responsável (sigla - nome)
+            unidade = registro.get("unidadeResponsavel", {}) or {}
             sigla = unidade.get("sigla", "")
             nome_unidade = unidade.get("nome", "")
-            if sigla or nome_unidade:
-                registro["UnidadeResponsavel_Completa"] = f"{sigla} - {nome_unidade}".strip(" -")
-            else:
-                registro["UnidadeResponsavel_Completa"] = ""
+            registro["UnidadeResponsavel_Completa"] = f"{sigla} - {nome_unidade}".strip(" -") if (sigla or nome_unidade) else ""
 
+            # 🔎 Numero da CDA (se existir)
+            cda = registro.get("certidaoDividaAtivaAtual", {}) or {}
+            registro["NumeroCertidaoDividaAtiva"] = cda.get("numeroCertidaoDividaAtiva", "")
+
+        # === DataFrames de saída ===
         df_out = pd.DataFrame(registros)
+
+        # Campos desejados para a aba Resumo (somente os que existirem em df_out serão usados)
+        campos_resumo_desejados = [
+            "NUP",
+            "Devedor_DocumentoFormatado",
+            "FaseAtual_Completa",
+            "UnidadeResponsavel_Completa",
+            "numeroCreditoSistemaOriginario",
+            "valorOriginario",
+            "NumeroCertidaoDividaAtiva",
+            "dataInscricaoDivida",
+            "valorInscricaoDivida",
+            "saldoAtualizado",
+            "dataConstituicaoDefinitiva",
+            "raizDevedorPrincipal",
+        ]
+        colunas_existentes = [c for c in campos_resumo_desejados if c in df_out.columns]
+        df_resumo = df_out[colunas_existentes].copy() if colunas_existentes else pd.DataFrame()
+        # Adiciona credor_id = 902
+        df_resumo["credor_id"] = 902
+        # Reposiciona credor_id como primeira coluna
+        cols_ordenadas = ["credor_id"] + [c for c in df_resumo.columns if c != "credor_id"]
+        df_resumo = df_resumo[cols_ordenadas]
+
+        # === Gravação em duas abas ===
         ts = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         caminho = os.path.join(os.path.expanduser("~"), "Downloads", f"{nome_prefixo}_{ts}.xlsx")
-        df_out.to_excel(caminho, index=False)
+        with pd.ExcelWriter(caminho) as writer:
+            df_resumo.to_excel(writer, sheet_name="Resumo", index=False)
+            df_out.to_excel(writer, sheet_name="Geral", index=False)
+
         msg_output.value = mensagem_sucesso
         page.dialog = alerta_dialogo
-        mostrar_alerta(ft, page, "Exportado com sucesso",
-                       "✅ Disponível em C:\\Downloads",
-                       tipo="success")
+        mostrar_alerta(ft, page, "Exportado com sucesso", "✅ Disponível em C:\\Downloads", tipo="success")
+
     except Exception as ex:
         msg_output.value = f"{mensagem_falha}: {ex}"
         page.dialog = alerta_dialogo
-        mostrar_alerta(ft, page, "Falha",
-                       "Uma falha ocorreu ao gerar o arquivo.",
-                       tipo="error")
+        mostrar_alerta(ft, page, "Falha", "Uma falha ocorreu ao gerar o arquivo.", tipo="error")
+
     msg_output.visible = True
     page.update()
     threading.Timer(3, lambda: (setattr(msg_output, 'visible', False), page.update())).start()
@@ -131,6 +155,21 @@ def exportar_para_excel(ft,
 
 # === ABA ===
 def aba_consulta_sapiens(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page, bloquear, desbloquear):
+    # ===== Helpers locais =====
+    def limpar_numero(s: str) -> str:
+        return ''.join(filter(str.isdigit, s or ''))
+
+    def is_cpf_cnpj(s: str) -> bool:
+        return s.isdigit() and len(s) in (11, 14)
+
+    def formatar_cpf_cnpj(s: str) -> str:
+        n = limpar_numero(s)
+        if len(n) == 11:
+            return f"{n[:3]}.{n[3:6]}.{n[6:9]}-{n[9:]}"
+        if len(n) == 14:
+            return f"{n[:2]}.{n[2:5]}.{n[5:8]}/{n[8:12]}-{n[12:]}"
+        return s
+
     # Estado
     page_index = 1
     items_per_page = 3
@@ -163,24 +202,31 @@ def aba_consulta_sapiens(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page, bloquea
     credenciais_expander = ft.ExpansionTile(
         title=ft.Text("🔐 Credenciais Sapiens"),
         initially_expanded=False,
-        controls=[
-            ft.Row([
-                txt_user_sapiens,
-                txt_pass_sapiens
-            ])
-        ]
+        controls=[ft.Row([txt_user_sapiens, txt_pass_sapiens])]
     )
-    doc_field = ft.TextField(label="CPF ou CNPJ do Devedor", width=300)
+
+    # 🔄 Agora aceita lista (até 5), um por linha
+    doc_field = ft.TextField(
+        label="CPF/CNPJ do(s) Devedor(es) (um por linha, até 5)",
+        hint_text="Ex.: 123.456.789-09 ou 12.345.678/0001-90",
+        width=420,
+        multiline=True,
+        min_lines=3,
+        max_lines=6,
+    )
+
     btn_consultar_doc = ft.ElevatedButton("Consultar", icon=ft.Icons.SEARCH)
     status_doc = ft.Text("", visible=False, color="blue")
     progress_doc = ft.ProgressBar(width=400, visible=False)
-    log_doc = ft.TextField(label="📝 Log de Consulta Sapiens",
-                           multiline=True,
-                           read_only=True,
-                           height=200,
-                           expand=True,
-                           label_style=ft.TextStyle(size=DEFAULT_FONT_SIZE),
-                           text_style=ft.TextStyle(size=DEFAULT_FONT_SIZE))
+    log_doc = ft.TextField(
+        label="📝 Log de Consulta Sapiens",
+        multiline=True,
+        read_only=True,
+        height=200,
+        expand=True,
+        label_style=ft.TextStyle(size=DEFAULT_FONT_SIZE),
+        text_style=ft.TextStyle(size=DEFAULT_FONT_SIZE)
+    )
 
     total_text_doc = ft.Text("Total: 0")
     paginador_doc = ft.Text()
@@ -212,7 +258,6 @@ def aba_consulta_sapiens(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page, bloquea
             for r in paginated[start:end]
         ]
         paginador_doc.value = f"{page_index}/{pages}"
-        # visibilidade com base nos registros
         container_tabela_doc.visible = total > 0
         table_doc.visible = total > 0
         for w in [btn_prev_doc, btn_next_doc, btn_export_doc]:
@@ -248,33 +293,44 @@ def aba_consulta_sapiens(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page, bloquea
     def run_consult(e):
         nonlocal paginated, all_records, page_index, cached_user, cached_pass
 
-        doc = ''.join(filter(str.isdigit, doc_field.value or ''))
-        if len(doc) not in (11, 14):
-            log_doc.value = "CPF/CNPJ inválido"
+        # 🔎 Coleta e saneamento dos documentos (até 5)
+        docs_raw = [ln.strip() for ln in (doc_field.value or "").splitlines() if ln.strip()]
+        if not docs_raw:
+            log_doc.value = "⚠ Informe ao menos um CPF/CNPJ (um por linha, até 5)."
+            page.update()
+            return
+        if len(docs_raw) > 5:
+            log_doc.value = "⚠ Máximo de 5 documentos por consulta. Os 5 primeiros serão processados.\n"
+            docs_raw = docs_raw[:5]
+
+        docs = [limpar_numero(x) for x in docs_raw]
+        invalidos = [formatar_cpf_cnpj(x) for x in docs if not is_cpf_cnpj(x)]
+        if invalidos:
+            log_doc.value = (log_doc.value + "\n" if log_doc.value else "") + \
+                            "❌ Documento(s) inválido(s): " + ", ".join(invalidos)
             page.update()
             return
 
         user_input = txt_user_sapiens.value.strip()
         pass_input = txt_pass_sapiens.value.strip()
-
         if not user_input or not pass_input:
-            log_doc.value = "⚠ Informe usuário e senha"
+            log_doc.value = "⚠ Informe usuário e senha."
             page.update()
             return
 
-        # Se for diferente do cache, salva novo
         if user_input != cached_user or pass_input != cached_pass:
             salvar_credenciais(user_input, pass_input)
-            cached_user, cached_pass = user_input, pass_input  # atualiza os valores em memória
+            cached_user, cached_pass = user_input, pass_input
 
         user, pwd = user_input, pass_input
 
-        doc_field.value = doc
+        # UI init
         btn_consultar_doc.disabled = True
         progress_doc.visible = True
         status_doc.visible = True
         status_doc.value = "Iniciando"
-        log_doc.value = ""
+        log_doc.value = (log_doc.value + "\n" if log_doc.value else "") + \
+                        f"🧹 Iniciando varredura para {len(docs)} documento(s)..."
         total_text_doc.value = "Total: 0"
         paginador_doc.value = ""
         for w in [btn_prev_doc, btn_next_doc, btn_export_doc]:
@@ -286,6 +342,7 @@ def aba_consulta_sapiens(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page, bloquea
             try:
                 bloquear()
 
+                # Login uma única vez
                 nav = webdriver.Chrome(options=options_nav())
                 nav.minimize_window()
                 nav, cookies = sapiens_login(nav, user, pwd)
@@ -293,37 +350,59 @@ def aba_consulta_sapiens(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page, bloquea
                 if not cookies:
                     status_doc.value = "❌ Falha no login. Usuário ou senha incorreto."
                     page.dialog = alerta_dialogo
-                    mostrar_alerta(ft, page, "Falha no login",
-                                   "Usuário ou senha incorreto.",
-                                   tipo="error")
+                    mostrar_alerta(ft, page, "Falha no login", "Usuário ou senha incorreto.", tipo="error")
                     page.update()
                     return
 
-                status_doc.value = "Login realizado com sucesso! Busca em andamento..."
+                status_doc.value = "🔐 Login OK. Iniciando consultas..."
                 page.update()
 
-                res = get_creditos_sapiens(cookies, doc)
+                # 🔁 Loop por documento
+                all_records = []
+                paginated = []
+                total_docs = len(docs)
+                encontrados_total = 0
+
+                for idx, doc in enumerate(docs, start=1):
+                    status_doc.value = f"Consultando {idx}/{total_docs}: {formatar_cpf_cnpj(doc)}"
+                    page.update()
+
+                    try:
+                        res = get_creditos_sapiens(cookies, doc)
+                        records = res.get("records", []) or []
+                        qtd = len(records)
+                        if qtd == 0:
+                            log_doc.value += f"\n🔎 {formatar_cpf_cnpj(doc)}: nenhum registro localizado."
+                        else:
+                            log_doc.value += f"\n✅ {formatar_cpf_cnpj(doc)}: {qtd} registro(s) capturado(s) com sucesso."
+                            encontrados_total += qtd
+                            all_records.extend(records)
+                            paginated.extend([
+                                {
+                                    'NUP': r.get('pasta', {}).get('NUP', ''),
+                                    'OutroNumero': r.get('pasta', {}).get('outroNumero', ''),
+                                    'RaizDevedorPrincipal': r.get('raizDevedorPrincipal', ''),
+                                    'EspecieCredito': r.get('especieCredito', {}).get('nome', ''),
+                                    'FaseAtual_Status': r.get('faseAtual', {}).get('especieStatus', {}).get('nome', ''),
+                                    'Devedor_Nome': r.get('devedorPrincipal', {}).get('nome', ''),
+                                    'Devedor_PostIt': r.get('postIt', '')
+                                }
+                                for r in records
+                            ])
+                    except Exception as ex_consulta:
+                        log_doc.value += f"\n❌ Erro ao consultar {formatar_cpf_cnpj(doc)}: {ex_consulta}"
+
                 nav.quit()
 
-                all_records = res.get("records", [])
-                paginated = [
-                    {
-                        'NUP': r.get('pasta', {}).get('NUP', ''),
-                        'OutroNumero': r.get('pasta', {}).get('outroNumero', ''),
-                        'RaizDevedorPrincipal': r.get('raizDevedorPrincipal', ''),
-                        'EspecieCredito': r.get('especieCredito', {}).get('nome', ''),
-                        'FaseAtual_Status': r.get('faseAtual', {}).get('especieStatus', {}).get('nome', ''),
-                        'Devedor_Nome': r.get('devedorPrincipal', {}).get('nome', ''),
-                        'Devedor_PostIt': r.get('postIt', '')
-                    }
-                    for r in all_records
-                ]
+                # Atualiza tabela/contadores
                 page_index = 1
-                status_doc.value = f"{len(paginated)} registros encontrados"
+                status_doc.value = ("⚠ Nenhum registro localizado"
+                                    if encontrados_total == 0
+                                    else f"📦 {encontrados_total} registro(s) localizado(s) no total")
                 atualizar_tabela()
 
             except Exception as ex:
-                log_doc.value = f"Erro: {ex}"
+                log_doc.value += f"\n❌ Erro geral: {ex}"
                 status_doc.value = "Erro"
             finally:
                 progress_doc.visible = False
@@ -344,7 +423,8 @@ def aba_consulta_sapiens(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page, bloquea
     children = [
         ft.Row([ft.Text("SAPIENS > Consulta Crédito Sapiens Dívida", size=10, weight="bold")], alignment="center"),
         ft.Divider(),
-        credenciais_expander]
+        credenciais_expander
+    ]
 
     container_tabela_doc = ft.Container(
         content=table_doc,
@@ -354,9 +434,9 @@ def aba_consulta_sapiens(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page, bloquea
         border_radius=10,
         border=ft.border.all(1, ft.Colors.GREY_600),
         bgcolor=ft.Colors.with_opacity(0.05, ft.Colors.ON_SURFACE),
-        visible=False  # ⬅️ oculto inicialmente
+        visible=False
     )
-    # Adiciona os demais elementos
+
     children.extend([
         ft.Row([doc_field, btn_consultar_doc]),
         status_doc,
