@@ -85,7 +85,7 @@ def exportar_para_excel(ft,
             registro["ModalidadeDocumentoDescricao"] = registro.get("modalidadeDocumentoOrigem", {}).get("descricao", "")
 
             # 🔄 Fase Atual (nome - descrição)
-            especie_status = registro.get("faseAtual", {}).get("especieStatus", {}) or {}
+            especie_status = registro.get("faseAtual", {}).get("especieStatus", {})
             nome = especie_status.get("nome", "")
             descricao = especie_status.get("descricao", "")
             registro["FaseAtual_Completa"] = f"{nome} - {descricao}".strip(" -") if (nome or descricao) else ""
@@ -97,13 +97,13 @@ def exportar_para_excel(ft,
             registro["Regional_Nome"] = registro.get("regional", {}).get("nome", "")
 
             # 🏢 Unidade Responsável (sigla - nome)
-            unidade = registro.get("unidadeResponsavel", {}) or {}
+            unidade = registro.get("unidadeResponsavel", {})
             sigla = unidade.get("sigla", "")
             nome_unidade = unidade.get("nome", "")
             registro["UnidadeResponsavel_Completa"] = f"{sigla} - {nome_unidade}".strip(" -") if (sigla or nome_unidade) else ""
 
             # 🔎 Numero da CDA (se existir)
-            cda = registro.get("certidaoDividaAtivaAtual", {}) or {}
+            cda = registro.get("certidaoDividaAtivaAtual", {})
             registro["NumeroCertidaoDividaAtiva"] = cda.get("numeroCertidaoDividaAtiva", "")
 
         # === DataFrames de saída ===
