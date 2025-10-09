@@ -207,7 +207,7 @@ def aba_consulta_sapiens(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page, bloquea
 
     # 🔄 Agora aceita lista (até 5), um por linha
     doc_field = ft.TextField(
-        label="CPF/CNPJ do(s) Devedor(es) (um por linha, até 5)",
+        label="CPF/CNPJ do(s) Devedor(es) (um por linha, até 100)",
         hint_text="Ex.: 123.456.789-09 ou 12.345.678/0001-90",
         width=420,
         multiline=True,
@@ -299,9 +299,9 @@ def aba_consulta_sapiens(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page, bloquea
             log_doc.value = "⚠ Informe ao menos um CPF/CNPJ (um por linha, até 5)."
             page.update()
             return
-        if len(docs_raw) > 5:
-            log_doc.value = "⚠ Máximo de 5 documentos por consulta. Os 5 primeiros serão processados.\n"
-            docs_raw = docs_raw[:5]
+        if len(docs_raw) > 100:
+            log_doc.value = "⚠ Máximo de 100 documentos por consulta. Os 100 primeiros serão processados.\n"
+            docs_raw = docs_raw[:100]
 
         docs = [limpar_numero(x) for x in docs_raw]
         invalidos = [formatar_cpf_cnpj(x) for x in docs if not is_cpf_cnpj(x)]
