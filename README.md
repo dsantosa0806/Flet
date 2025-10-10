@@ -52,7 +52,7 @@
 
    
 
-## 🖼️ Interface da Aplicação
+## 🖼s️ Interface da Aplicação
 
 A aplicação está organizada em uma interface com quatro abas principais, oferecendo uma experiência simples e eficiente:
 

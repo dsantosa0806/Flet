@@ -8,6 +8,7 @@ from config import DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, WINDOW_WIDTH, WINDOW_HE
 from views.aba_inicial import aba_inicial
 from views.aba_consulta_sior_cobranca import aba_consulta_auto_cobranca
 from views.aba_copia_pa import aba_copia_pa
+from views.aba_consulta_cadin import aba_consulta_cadin
 
 
 def construir_cabecalho(toggle_switch):
@@ -96,6 +97,9 @@ def main(page: ft.Page):
             case "SIOR_Consulta_Painel_Super":
                 conteudo_abas.content = aba_consulta_sior_painel_supervisor(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE,
                                                                             page, bloquear, desbloquear)
+            case "CADIN_Consulta":
+                conteudo_abas.content = aba_consulta_cadin(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page)
+
 
         page.update()
 
@@ -152,6 +156,19 @@ def main(page: ft.Page):
                     checked=False
                 ),
 
+            ]
+        ),
+        ft.PopupMenuButton(
+            content=ft.Text("CADIN"),
+            tooltip="",
+            menu_padding=0,
+            menu_position=ft.PopupMenuPosition.UNDER,
+            items=[
+                ft.PopupMenuItem(
+                    text="Consulta CADIN",
+                    on_click=lambda e: atualizar_conteudo("CADIN_Consulta"),
+                    checked=False
+                ),
             ]
         ),
         ft.PopupMenuButton(
