@@ -1,84 +1,79 @@
+# ============================================
+# requisicoes_cadin.py – Consulta CADIN (CPF/CNPJ)
+# ============================================
+
 import requests
 import time
-from typing import List, Dict, Any
 
-def consultar_cadin(token: str, documentos: List[str]) -> List[Dict[str, Any]]:
+
+def consultar_cadin(token: str, lista_documentos: list):
     """
-    Consulta o CADIN usando TOKEN_JWT manual.
-    Retorna lista de registros detalhados para cada CPF/CNPJ consultado.
+    Realiza a consulta de CPF ou CNPJ no CADIN utilizando o token JWT válido.
+    Retorna uma lista com todos os registros encontrados.
     """
     resultados = []
-    headers = {
-        "Accept": "application/json, text/plain, */*",
-        "Authorization": f"Bearer {token}",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/141.0.0.0 Safari/537.36",
-        "Origin": "https://cadin.pgfn.gov.br",
-        "Referer": "https://cadin.pgfn.gov.br/",
+    url_base = "https://cadin.pgfn.gov.br/cadastro/apirest/registro"
+
+    headers_base = {
+        "authority": "cadin.pgfn.gov.br",
+        "accept": "application/json, text/plain, */*",
+        "accept-encoding": "gzip, deflate, br, zstd",
+        "accept-language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
+        "origin": "https://cadin.pgfn.gov.br",
+        "priority": "u=1, i",
+        "referer": "https://cadin.pgfn.gov.br/",
+        "sec-ch-ua": '"Google Chrome";v="141", "Not?A_Brand";v="8", "Chromium";v="141"',
+        "sec-ch-ua-mobile": "?0",
+        "sec-ch-ua-platform": '"Windows"',
+        "sec-fetch-dest": "empty",
+        "sec-fetch-mode": "cors",
+        "sec-fetch-site": "same-origin",
+        "user-agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/141.0.0.0 Safari/537.36"
+        ),
     }
 
-    base_url = "https://cadin.pgfn.gov.br/cadastro/apirest/registro"
+    for doc in lista_documentos:
+        # Sanitiza o documento (remove pontos, traços, barras)
+        doc = "".join(ch for ch in str(doc) if ch.isdigit())
 
-    print(f"🚀 Iniciando consultas CADIN | Total: {len(documentos)} documentos")
+        # Determina tipo de documento
+        tipo = "cnpj" if len(doc) > 11 else "cpf"
+        url = f"{url_base}/{doc}/{tipo}"
 
-    for i, doc in enumerate(documentos, start=1):
-        doc_limpo = "".join(ch for ch in doc if ch.isdigit())
-        tipo = "cnpj" if len(doc_limpo) == 14 else "cpf"
-        url = f"{base_url}/{doc_limpo}/{tipo}"
+        headers = headers_base.copy()
+        headers["authorization"] = f"Bearer {token.strip()}"
 
-        print(f"[{i}/{len(documentos)}] 🔍 Consultando {tipo.upper()}: {doc_limpo}")
+        print(f"🔎 Consultando {tipo.upper()} {doc} ...")
+
         try:
-            resp = requests.get(url, headers=headers, timeout=30)
-            if resp.status_code == 200:
-                dados = resp.json()
+            response = requests.get(url, headers=headers, timeout=30)
 
-                # ✅ Caso a API retorne lista diretamente
-                if isinstance(dados, list):
-                    for registro in dados:
-                        resultados.append({
-                            "cpfCnpj": registro.get("cpfCnpj", ""),
-                            "nome": registro.get("nome", ""),
-                            "numeroTransacao": registro.get("numeroTransacao", ""),
-                            "numeroReferencia": registro.get("numeroReferencia", ""),
-                            "complementoReferencia": registro.get("complementoReferencia", ""),
-                            "dataComunicacao": registro.get("dataComunicacao", ""),
-                            "dataInadimplencia": registro.get("dataInadimplencia", ""),
-                            "nomeInstituicao": registro.get("nomeInstituicao", ""),
-                            "motivo": registro.get("motivo", ""),
-                            "tipoTransacao": registro.get("tipoTransacao", ""),
-                            "tipoAtualizacao": registro.get("tipoAtualizacao", ""),
-                            "nivelFederativo": registro.get("nivelFederativo", ""),
-                        })
+            if response.status_code == 200:
+                try:
+                    data = response.json()
+                    if isinstance(data, list):
+                        resultados.extend(data)
+                    elif isinstance(data, dict):
+                        resultados.append(data)
+                    print(f"✅ {tipo.upper()} {doc} → {len(data) if isinstance(data, list) else 1} registro(s)")
+                except Exception as ex_json:
+                    print(f"⚠️ Erro ao decodificar JSON para {doc}: {ex_json}")
 
-                # ✅ Caso retorne dict com chave "registros"
-                elif isinstance(dados, dict):
-                    for registro in dados.get("registros", []):
-                        resultados.append({
-                            "cpfCnpj": registro.get("cpfCnpj", ""),
-                            "nome": dados.get("nome", ""),
-                            "numeroTransacao": registro.get("numeroTransacao", ""),
-                            "numeroReferencia": registro.get("numeroReferencia", ""),
-                            "complementoReferencia": registro.get("complementoReferencia", ""),
-                            "dataComunicacao": registro.get("dataComunicacao", ""),
-                            "dataInadimplencia": registro.get("dataInadimplencia", ""),
-                            "nomeInstituicao": registro.get("nomeInstituicao", ""),
-                            "motivo": registro.get("motivo", ""),
-                            "tipoTransacao": registro.get("tipoTransacao", ""),
-                            "tipoAtualizacao": registro.get("tipoAtualizacao", ""),
-                            "nivelFederativo": registro.get("nivelFederativo", ""),
-                        })
-
-                else:
-                    print(f"⚠️ Retorno inesperado: {type(dados)}")
-
-            elif resp.status_code == 404:
-                print(f"ℹ️ Nenhum registro encontrado para {doc_limpo}.")
+            elif response.status_code == 403:
+                print(f"❌ Acesso negado (403) – token inválido ou expirado para {doc}")
+            elif response.status_code == 404:
+                print(f"⚠️ Nenhum registro encontrado para {doc}")
             else:
-                print(f"⚠️ HTTP {resp.status_code} | {resp.text[:150]}")
+                print(f"⚠️ Erro {response.status_code} ao consultar {doc}: {response.text[:200]}")
 
-        except Exception as e:
-            print(f"❌ Erro ao consultar {doc_limpo}: {e}")
+            # Pausa mínima entre consultas para evitar bloqueio
+            time.sleep(0.5)
 
-        time.sleep(1.0)
+        except requests.exceptions.RequestException as ex_req:
+            print(f"❌ Erro de conexão para {doc}: {ex_req}")
 
-    print(f"✅ Concluído. Total de registros coletados: {len(resultados)}")
+    print(f"\n📊 Total de registros coletados: {len(resultados)}")
     return resultados

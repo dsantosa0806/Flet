@@ -9,7 +9,7 @@ from selenium.webdriver.support import expected_conditions as EC
 CADIN_URL_HOME = "https://cadin.pgfn.gov.br/"
 CADIN_URL_LOGIN = "https://cadin.pgfn.gov.br/autenticacao"
 
-HEADLESS_DEFAULT = False  # mantém visível para permitir login GOV.BR
+HEADLESS_DEFAULT = False  # visível apenas no login inicial
 
 
 # ====================== OPÇÕES DO NAVEGADOR ======================
@@ -81,9 +81,10 @@ def login(navegador) -> int:
 # ============================ ACESSO ============================
 def abrir_cadin():
     """
-    Abre o navegador Chrome, realiza o login manual e retorna o navegador logado.
+    Abre o navegador Chrome, realiza o login manual e retorna o navegador logado
+    reaberto em modo headless (sem interface) após sucesso no login.
     """
-    print("🌐 Iniciando navegador do CADIN...")
+    print("🌐 Iniciando navegador do CADIN (modo visível para login GOV.BR)...")
     navegador = webdriver.Chrome(options=option_navegador(headless=False))
 
     print("🔓 Acessando tela de login...")
@@ -94,8 +95,23 @@ def abrir_cadin():
         navegador.quit()
         raise RuntimeError("Falha ao realizar login no CADIN.")
 
-    print("✅ Login confirmado — navegador pronto para uso nas requisições.")
-    return navegador
+    # ✅ Após login bem-sucedido, salvar cookies e reiniciar headless
+    print("💾 Capturando cookies de sessão...")
+    cookies = navegador.get_cookies()
+    navegador.quit()
+
+    print("🕶️ Reiniciando navegador em modo headless...")
+    navegador_headless = webdriver.Chrome(options=option_navegador(headless=True))
+    navegador_headless.get(CADIN_URL_HOME)
+
+    # Restaura os cookies capturados
+    for cookie in cookies:
+        navegador_headless.add_cookie(cookie)
+
+    navegador_headless.refresh()
+    print("✅ Sessão CADIN reaberta com sucesso em modo headless.")
+
+    return navegador_headless
 
 
 # ===================[ FIM – LOGIN CADIN ]===================
