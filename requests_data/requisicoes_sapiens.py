@@ -1,92 +1,86 @@
+# requisicoes_sapiens.py (corrigido e otimizado)
 import requests
 
 
-def get_creditos_sapiens(cookies: dict, documento: str) -> dict:
-    url = "https://sapiens.agu.gov.br/route"
+def get_creditos_sapiens(token: str, documento: str) -> dict:
+    """
+    Consulta créditos no Super Sapiens usando o backend /v1/divida/credito.
+    Recebe o token JWT (já obtido via obter_token()) e o CPF/CNPJ (somente números).
+    Retorna dicionário com total e registros.
+    """
+    if not token:
+        raise RuntimeError("Token inválido — não foi fornecido JWT.")
+
+    # 🔹 Corrigido: filtro pelo CPF/CNPJ do devedor
+    url = (
+        "https://supersapiensbackend.agu.gov.br/v1/divida/credito"
+        "?where=%7B%22andX%22%3A%5B%7B%22devedorPrincipal.numeroDocumentoPrincipal%22%3A%22eq%3A"
+        f"{documento}%22%7D%5D%7D"
+        "&limit=100&offset=0&order=%7B%7D"
+        "&populate=%5B%22credor%22%2C%22credor.pessoa%22%2C%22faseAtual%22%2C%22faseAtual.especieStatus%22%2C"
+        "%22unidadeResponsavel%22%2C%22especieStatusAtual%22%2C%22processo%22%2C%22processo.documentoAvulsoOrigem%22%2C"
+        "%22vinculacoesEtiquetas%22%2C%22vinculacoesEtiquetas.etiqueta%22%2C%22vinculacaoLoteAtual%22%2C"
+        "%22vinculacaoLoteAtual.lote%22%2C%22especieCredito%22%2C%22devedorPrincipal%22%2C%22regional%22%2C"
+        "%22modalidadeDocumentoOrigem%22%2C%22certidaoDividaAtivaAtual%22%2C%22certidaoDividaAtivaCancelada%22%2C"
+        "%22usuarioInscricaoDivida%22%2C%22unidadeInscricaoDivida%22%2C%22creditoOrigem%22%2C%22criadoPor%22%2C"
+        "%22atualizadoPor%22%5D&context=%7B%7D"
+    )
 
     headers = {
-        "Accept": "*/*",
-        "Accept-Encoding": "gzip, deflate, br, zstd",
-        "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
-        "Origin": "https://sapiens.agu.gov.br",
-        "Referer": "https://sapiens.agu.gov.br/divida",
-        "Sec-Fetch-Dest": "empty",
-        "Sec-Fetch-Mode": "cors",
-        "Sec-Fetch-Site": "same-origin",
-        "X-Requested-With": "XMLHttpRequest",
-        "sec-ch-ua": '"Not)A;Brand";v="8", "Chromium";v="138", "Google Chrome";v="138"',
-        "sec-ch-ua-mobile": "?0",
-        "sec-ch-ua-platform": '"Windows"',
-        "Content-Type": "application/json",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"
+        "Accept": "application/json, text/plain, */*",
+        "Authorization": f"Bearer {token}",
+        "Origin": "https://supersapiens.agu.gov.br",
+        "Referer": "https://supersapiens.agu.gov.br/",
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36"
+        ),
     }
 
-    page = 1
-    limit = 100
-    todos_registros = []
+    try:
+        resp = requests.get(url, headers=headers, timeout=60)
+        if resp.status_code != 200:
+            raise RuntimeError(f"Erro HTTP {resp.status_code}: {resp.text[:300]}")
 
-    while True:
-        payload = {
-            "action": "SapiensDivida_Credito",
-            "method": "getCredito",
-            "data": [{
-                "fetch": [
-                    "pasta", "criadoPor", "atualizadoPor", "modalidadeDocumentoOrigem", "especieCredito",
-                    "especieCredito.vinculacoesEspeciesFundamentosLegais",
-                    "especieCredito.vinculacoesEspeciesFundamentosLegais.fundamentoLegal",
-                    "especieCredito.vinculacoesEspeciesFundamentosLegais.fundamentoLegal.modalidadeFundamentoLegal",
-                    "faseAtual", "faseAtual.especieStatus", "devedorPrincipal",
-                    "devedorPrincipal.enderecos", "devedorPrincipal.enderecos.municipio",
-                    "devedorPrincipal.enderecos.municipio.estado",
-                    "devedorPrincipal.cadastrosIdentificadores", "credor", "credor.pessoa", "regional",
-                    "unidadeResponsavel", "unidadeInscricaoDivida", "numeroUnicoIdentificacao",
-                    "usuarioInscricaoDivida", "documentoTermoInscricaoDivida",
-                    "documentoTermoInscricaoDivida.tipoDocumento",
-                    "documentoTermoInscricaoDivida.componentesDigitais",
-                    "documentoTermoInscricaoDivida.componentesDigitais.assinaturas",
-                    "creditoOrigem", "certidaoDividaAtivaAtual", "certidaoDividaAtivaCancelada"
-                ],
-                "filter": [{
-                    "property": "devedorPrincipal.cadastrosIdentificadores.numero",
-                    "value": f"eq:{documento}"
-                }],
-                "page": page,
-                "start": (page - 1) * limit,
-                "limit": limit
-            }],
-            "type": "rpc",
-            "tid": page
-        }
+        data = resp.json()
+        entidades = data.get("entities", [])
 
-        try:
-            response = requests.post(url, headers=headers, cookies=cookies, json=payload)
+        registros = []
+        for item in entidades:
+            registros.append({
+                "id": item.get("id"),
+                "numeroCreditoSistemaOriginario": item.get("numeroCreditoSistemaOriginario"),
+                "valorOriginario": item.get("valorOriginario"),
+                "dataVencimento": item.get("dataVencimento"),
+                "dataInicioMultaMora": item.get("dataInicioMultaMora"),
+                "dataInicioSelic": item.get("dataInicioSelic"),
+                "descricaoComplementoFundamentoLegal": item.get("descricaoComplementoFundamentoLegal"),
+                "dataConstituicaoDefinitiva": item.get("dataConstituicaoDefinitiva"),
+                "defesaApresentada": item.get("defesaApresentada"),
+                "dataNotificacaoInicial": item.get("dataNotificacaoInicial"),
+                "dataDecursoPrazoDefesa": item.get("dataDecursoPrazoDefesa"),
+                "postIt": item.get("postIt"),
+                "dataDocumentoOrigem": item.get("dataDocumentoOrigem"),
+                "numeroDocumentoOrigem": item.get("numeroDocumentoOrigem"),
+                "saldoAtualizado": item.get("saldoAtualizado"),
+                "dataAtualizacao": item.get("dataAtualizacao"),
+                "dataInscricaoDivida": item.get("dataInscricaoDivida"),
+                "valorInscricaoDivida": item.get("valorInscricaoDivida"),
+                "numeroInscricaoDivida": item.get("numeroInscricaoDivida"),
+                "raizDevedorPrincipal": item.get("raizDevedorPrincipal"),
+                "devedorPrincipal": item.get("devedorPrincipal"),
+                "credor": item.get("credor"),
+                "regional": item.get("regional"),
+                "unidadeResponsavel": item.get("unidadeResponsavel"),
+                "faseAtual": item.get("faseAtual"),
+                "certidaoDividaAtivaAtual": item.get("certidaoDividaAtivaAtual"),
+                "criadoPor": item.get("criadoPor"),
+                "atualizadoPor": item.get("atualizadoPor"),
+                "processo": item.get("processo"),
+            })
 
-            if response.status_code != 200:
-                print(f"❌ Erro HTTP {response.status_code}: {response.text[:200]}")
-                break
+        return {"total": len(registros), "records": registros}
 
-            data = response.json()
-
-            if not isinstance(data, list) or not data or "result" not in data[0]:
-                print(f"❌ Estrutura de resposta inválida: {data}")
-                break
-
-            registros = data[0]["result"]["records"]
-            total = data[0]["result"]["total"]
-
-            todos_registros.extend(registros)
-            print(f"✅ Página {page} - Registros: {len(registros)} / Total: {total}")
-
-            if len(todos_registros) >= total:
-                break
-
-            page += 1
-
-        except Exception as ex:
-            print(f"❌ Erro ao requisitar página {page}: {ex}")
-            break
-
-    return {
-        "total": len(todos_registros),
-        "records": todos_registros
-    }
+    except Exception as ex:
+        print(f"❌ Falha na requisição Super Sapiens: {ex}")
+        return {"total": 0, "records": []}
