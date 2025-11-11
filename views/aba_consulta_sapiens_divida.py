@@ -18,16 +18,23 @@ def exportar_para_excel(ft,
                         msg_output,
                         page,
                         alerta_dialogo):
-    """Exporta dados obtidos para Excel com abas 'Resumo' e 'Geral'."""
+    """Exporta todos os registros coletados para Excel com abas 'Resumo' e 'Geral'."""
     try:
+        if not registros or len(registros) == 0:
+            msg_output.value = "⚠ Nenhum dado disponível para exportação."
+            page.dialog = alerta_dialogo
+            mostrar_alerta(ft, page, "Aviso", "Nenhum dado disponível para exportação.", tipo="warning")
+            return
+
         campos_data = [
             'dataVencimento', 'dataInicioMultaMora', 'dataInicioSelic',
             'dataConstituicaoDefinitiva', 'dataInscricaoDivida',
             'dataAtualizacao', 'dataValidadeAtualizacao'
         ]
 
+        # 🔹 Normaliza e formata todos os registros
         for registro in registros:
-            # Formatar datas ISO
+            # Datas ISO → dd/mm/yyyy
             for campo in campos_data:
                 valor = registro.get(campo)
                 if isinstance(valor, str) and "T" in valor:
@@ -38,7 +45,7 @@ def exportar_para_excel(ft,
                     except Exception:
                         registro[campo] = ""
 
-            # CPF/CNPJ
+            # CPF/CNPJ formatado
             doc_raw = registro.get("devedorPrincipal", {}).get("numeroDocumentoPrincipal", "")
             if str(doc_raw).isdigit():
                 if len(doc_raw) == 11:
@@ -50,15 +57,16 @@ def exportar_para_excel(ft,
             else:
                 registro["Devedor_DocumentoFormatado"] = doc_raw
 
-            # NUP
+            # NUP (processo)
             registro["NUP"] = registro.get("processo", {}).get("NUPFormatado", "")
 
-            # Unidade e Fase
+            # Unidade completa
             unidade = registro.get("unidadeResponsavel", {}) or {}
             sigla = unidade.get("sigla", "")
             nome_unidade = unidade.get("nome", "")
             registro["UnidadeResponsavel_Completa"] = f"{sigla} - {nome_unidade}".strip(" -")
 
+            # Fase Atual completa
             especie_status = registro.get("faseAtual", {}).get("especieStatus", {}) or {}
             nome = especie_status.get("nome", "")
             descricao = especie_status.get("descricao", "")
@@ -68,8 +76,10 @@ def exportar_para_excel(ft,
             cda = registro.get("certidaoDividaAtivaAtual", {}) or {}
             registro["NumeroCertidaoDividaAtiva"] = cda.get("numeroCertidaoDividaAtiva", "")
 
+        # 🔹 Criação dos DataFrames
         df_out = pd.DataFrame(registros)
 
+        # Campos da aba "Resumo" (somente os existentes)
         campos_resumo = [
             "NUP", "Devedor_DocumentoFormatado", "FaseAtual_Completa",
             "UnidadeResponsavel_Completa", "numeroCreditoSistemaOriginario",
@@ -79,28 +89,34 @@ def exportar_para_excel(ft,
         ]
         colunas_existentes = [c for c in campos_resumo if c in df_out.columns]
         df_resumo = df_out[colunas_existentes].copy() if colunas_existentes else pd.DataFrame()
+
+        # Adiciona credor_id fixo e reordena
         df_resumo["credor_id"] = 902
         df_resumo = df_resumo[["credor_id"] + [c for c in df_resumo.columns if c != "credor_id"]]
 
+        # 🔹 Exporta para Excel (com abas)
         ts = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         caminho = os.path.join(os.path.expanduser("~"), "Downloads", f"{nome_prefixo}_{ts}.xlsx")
 
-        with pd.ExcelWriter(caminho) as writer:
+        with pd.ExcelWriter(caminho, engine="openpyxl") as writer:
+            # Aba 1: Resumo (campos essenciais)
             df_resumo.to_excel(writer, sheet_name="Resumo", index=False)
+            # Aba 2: Geral (todos os dados)
             df_out.to_excel(writer, sheet_name="Geral", index=False)
 
         msg_output.value = mensagem_sucesso
         page.dialog = alerta_dialogo
-        mostrar_alerta(ft, page, "Exportado com sucesso", "✅ Disponível em C:\\Downloads", tipo="success")
+        mostrar_alerta(ft, page, "Exportado com sucesso", f"✅ Arquivo salvo em {caminho}", tipo="success")
+        print(f"📁 Exportação concluída: {len(df_out)} registros totais — salvo em {caminho}")
 
     except Exception as ex:
         msg_output.value = f"{mensagem_falha}: {ex}"
         page.dialog = alerta_dialogo
-        mostrar_alerta(ft, page, "Falha", "Erro ao gerar o arquivo.", tipo="error")
+        mostrar_alerta(ft, page, "Falha", f"Erro ao gerar o arquivo: {ex}", tipo="error")
 
     msg_output.visible = True
     page.update()
-    threading.Timer(3, lambda: (setattr(msg_output, 'visible', False), page.update())).start()
+    threading.Timer(3, lambda: (setattr(msg_output, "visible", False), page.update())).start()
 
 
 # === ABA ===

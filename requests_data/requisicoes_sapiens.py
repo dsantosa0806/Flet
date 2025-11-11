@@ -1,22 +1,20 @@
-# requisicoes_sapiens.py (corrigido e otimizado)
 import requests
 
 
 def get_creditos_sapiens(token: str, documento: str) -> dict:
     """
-    Consulta créditos no Super Sapiens usando o backend /v1/divida/credito.
-    Recebe o token JWT (já obtido via obter_token()) e o CPF/CNPJ (somente números).
-    Retorna dicionário com total e registros.
+    Consulta créditos no Super Sapiens usando o endpoint /v1/divida/credito.
+    Percorre todas as páginas até coletar todos os registros disponíveis.
+    Exibe logs progressivos com a quantidade de itens varridos.
     """
     if not token:
         raise RuntimeError("Token inválido — não foi fornecido JWT.")
 
-    # 🔹 Corrigido: filtro pelo CPF/CNPJ do devedor
-    url = (
+    base_url = (
         "https://supersapiensbackend.agu.gov.br/v1/divida/credito"
         "?where=%7B%22andX%22%3A%5B%7B%22devedorPrincipal.numeroDocumentoPrincipal%22%3A%22eq%3A"
         f"{documento}%22%7D%5D%7D"
-        "&limit=100&offset=0&order=%7B%7D"
+        "&limit=100&offset={offset}&order=%7B%7D"
         "&populate=%5B%22credor%22%2C%22credor.pessoa%22%2C%22faseAtual%22%2C%22faseAtual.especieStatus%22%2C"
         "%22unidadeResponsavel%22%2C%22especieStatusAtual%22%2C%22processo%22%2C%22processo.documentoAvulsoOrigem%22%2C"
         "%22vinculacoesEtiquetas%22%2C%22vinculacoesEtiquetas.etiqueta%22%2C%22vinculacaoLoteAtual%22%2C"
@@ -37,48 +35,67 @@ def get_creditos_sapiens(token: str, documento: str) -> dict:
         ),
     }
 
+    registros = []
+    offset = 0
+    limit = 100
+    pagina = 1
+
     try:
-        resp = requests.get(url, headers=headers, timeout=60)
-        if resp.status_code != 200:
-            raise RuntimeError(f"Erro HTTP {resp.status_code}: {resp.text[:300]}")
+        while True:
+            url = base_url.format(offset=offset)
+            resp = requests.get(url, headers=headers, timeout=60)
 
-        data = resp.json()
-        entidades = data.get("entities", [])
+            if resp.status_code != 200:
+                raise RuntimeError(f"Erro HTTP {resp.status_code}: {resp.text[:300]}")
 
-        registros = []
-        for item in entidades:
-            registros.append({
-                "id": item.get("id"),
-                "numeroCreditoSistemaOriginario": item.get("numeroCreditoSistemaOriginario"),
-                "valorOriginario": item.get("valorOriginario"),
-                "dataVencimento": item.get("dataVencimento"),
-                "dataInicioMultaMora": item.get("dataInicioMultaMora"),
-                "dataInicioSelic": item.get("dataInicioSelic"),
-                "descricaoComplementoFundamentoLegal": item.get("descricaoComplementoFundamentoLegal"),
-                "dataConstituicaoDefinitiva": item.get("dataConstituicaoDefinitiva"),
-                "defesaApresentada": item.get("defesaApresentada"),
-                "dataNotificacaoInicial": item.get("dataNotificacaoInicial"),
-                "dataDecursoPrazoDefesa": item.get("dataDecursoPrazoDefesa"),
-                "postIt": item.get("postIt"),
-                "dataDocumentoOrigem": item.get("dataDocumentoOrigem"),
-                "numeroDocumentoOrigem": item.get("numeroDocumentoOrigem"),
-                "saldoAtualizado": item.get("saldoAtualizado"),
-                "dataAtualizacao": item.get("dataAtualizacao"),
-                "dataInscricaoDivida": item.get("dataInscricaoDivida"),
-                "valorInscricaoDivida": item.get("valorInscricaoDivida"),
-                "numeroInscricaoDivida": item.get("numeroInscricaoDivida"),
-                "raizDevedorPrincipal": item.get("raizDevedorPrincipal"),
-                "devedorPrincipal": item.get("devedorPrincipal"),
-                "credor": item.get("credor"),
-                "regional": item.get("regional"),
-                "unidadeResponsavel": item.get("unidadeResponsavel"),
-                "faseAtual": item.get("faseAtual"),
-                "certidaoDividaAtivaAtual": item.get("certidaoDividaAtivaAtual"),
-                "criadoPor": item.get("criadoPor"),
-                "atualizadoPor": item.get("atualizadoPor"),
-                "processo": item.get("processo"),
-            })
+            data = resp.json()
+            entidades = data.get("entities", [])
+            if not entidades:
+                break
 
+            for item in entidades:
+                registros.append({
+                    "id": item.get("id"),
+                    "numeroCredito": item.get("numeroCredito"),  # 🆕 incluído aqui
+                    "numeroCreditoSistemaOriginario": item.get("numeroCreditoSistemaOriginario"),
+                    "valorOriginario": item.get("valorOriginario"),
+                    "dataVencimento": item.get("dataVencimento"),
+                    "dataInicioMultaMora": item.get("dataInicioMultaMora"),
+                    "dataInicioSelic": item.get("dataInicioSelic"),
+                    "descricaoComplementoFundamentoLegal": item.get("descricaoComplementoFundamentoLegal"),
+                    "dataConstituicaoDefinitiva": item.get("dataConstituicaoDefinitiva"),
+                    "defesaApresentada": item.get("defesaApresentada"),
+                    "dataNotificacaoInicial": item.get("dataNotificacaoInicial"),
+                    "dataDecursoPrazoDefesa": item.get("dataDecursoPrazoDefesa"),
+                    "postIt": item.get("postIt"),
+                    "dataDocumentoOrigem": item.get("dataDocumentoOrigem"),
+                    "numeroDocumentoOrigem": item.get("numeroDocumentoOrigem"),
+                    "saldoAtualizado": item.get("saldoAtualizado"),
+                    "dataAtualizacao": item.get("dataAtualizacao"),
+                    "dataInscricaoDivida": item.get("dataInscricaoDivida"),
+                    "valorInscricaoDivida": item.get("valorInscricaoDivida"),
+                    "numeroInscricaoDivida": item.get("numeroInscricaoDivida"),
+                    "raizDevedorPrincipal": item.get("raizDevedorPrincipal"),
+                    "devedorPrincipal": item.get("devedorPrincipal"),
+                    "credor": item.get("credor"),
+                    "regional": item.get("regional"),
+                    "unidadeResponsavel": item.get("unidadeResponsavel"),
+                    "faseAtual": item.get("faseAtual"),
+                    "certidaoDividaAtivaAtual": item.get("certidaoDividaAtivaAtual"),
+                    "criadoPor": item.get("criadoPor"),
+                    "atualizadoPor": item.get("atualizadoPor"),
+                    "processo": item.get("processo"),
+                })
+
+            print(f"✅ Página {pagina} — {len(entidades)} registros (total: {len(registros)})")
+
+            if len(entidades) < limit:
+                break
+
+            offset += limit
+            pagina += 1
+
+        print(f"\n📊 Total de registros coletados: {len(registros)}\n")
         return {"total": len(registros), "records": registros}
 
     except Exception as ex:

@@ -85,8 +85,7 @@ def main(page: ft.Page):
                 conteudo_abas.content = aba_consulta_sapiens(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page, bloquear,
                                                              desbloquear)
             case "Sapiens_Copia_Pa":
-                conteudo_abas.content = aba_copia_pa(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page, bloquear,
-                                                     desbloquear)
+                conteudo_abas.content = aba_copia_pa(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page, bloquear, desbloquear)
             case "Sobre":
                 conteudo_abas.content = aba_sobre(ft, HEADING_FONT_SIZE, DEFAULT_FONT_SIZE)
             case "Inicio":
@@ -149,12 +148,12 @@ def main(page: ft.Page):
                     on_click=lambda e: atualizar_conteudo("Sapiens_Consulta"),
                     checked=False
                 ),
-                ft.PopupMenuItem(),
-                ft.PopupMenuItem(
-                    text="Download P.A's",
-                    on_click=lambda e: atualizar_conteudo("Sapiens_Copia_Pa"),
-                    checked=False
-                ),
+                # ft.PopupMenuItem(),
+                # ft.PopupMenuItem(
+                #     text="Download P.A's",
+                #     on_click=lambda e: atualizar_conteudo("Sapiens_Copia_Pa"),
+                #     checked=False
+                # ),
 
             ]
         ),

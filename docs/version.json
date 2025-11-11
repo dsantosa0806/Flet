@@ -1,5 +1,5 @@
 {
-  "version": "1.2.0.2",
-  "changelog": "• Melhorias nos relatórios extraídos Sapiens Dívida\n",
+  "version": "1.2.0.3",
+  "changelog": "• Inclusao de pesquisa CADIN\n • Varredura Super Sapiens Dívida por CNPJ\n ",
   "download_url": "https://drive.google.com/drive/folders/1qrEE02qNLo9aDBZB67U0iMpSt1Kukc1f?usp=sharing"
 }
