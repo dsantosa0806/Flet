@@ -79,8 +79,12 @@ def executar_fluxo_completo(codigos_input,
                 atualizar_progresso(i, total)
         log_print("✅ Todos os relatórios foram processados.")
     finally:
-        navegador.quit()
-        log_print("🧼 Navegador encerrado.")
+        try:
+            if navegador:
+                navegador.quit()
+                log_print("🧼 Navegador encerrado.")
+        except:
+            pass
 
 
 # === UI COMPONENTE - ABA DE DOWNLOAD ===
@@ -128,6 +132,7 @@ def aba_download(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page, bloquear, desbl
         page.update()
 
         def task():
+            navegador = None  # 🔥 importante
             try:
                 bloquear()
                 total = len(codigos)

@@ -2,11 +2,13 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import NoSuchElementException
+from selenium.common.exceptions import TimeoutException
 import requests
 from selenium import webdriver
 import config
 import os
 import json
+
 
 caminho_padrao = config.caminho_padrao
 
@@ -61,6 +63,7 @@ def option_navegador(headless=True):
     options.add_argument("--disable-infobars")
     options.add_argument("--disable-blink-features=AutomationControlled")
     options.add_argument("--use_subprocess")
+    options.page_load_strategy = "eager"
 
     if headless:
         options.add_argument("--headless=new")
@@ -76,7 +79,26 @@ def option_navegador(headless=True):
 
 def acessa_sior(navegador):
     try:
-        navegador.get('http://servicos.dnit.gov.br/sior/Account/Login/?ReturnUrl=%2Fsior%2F')
+        url = 'http://servicos.dnit.gov.br/sior/Account/Login/?ReturnUrl=%2Fsior%2F'
+
+        navegador.set_page_load_timeout(30)
+
+        try:
+            navegador.get(url)
+        except TimeoutException:
+            print("⚠️ Timeout no carregamento → forçando stop")
+            navegador.execute_script("window.stop();")
+
+        # 🔥 1. GARANTE que algo carregou (body sempre existe)
+        WebDriverWait(navegador, 15).until(
+            EC.presence_of_element_located((By.TAG_NAME, "body"))
+        )
+
+        # 🔥 2. ESPERA a página parar de "mexer" (estabilizar)
+        WebDriverWait(navegador, 15).until(
+            lambda d: d.execute_script("return document.readyState") in ["interactive", "complete"]
+        )
+
     except Exception as e:
         print(f'Erro ao acessar SIOR: {e}')
         raise RuntimeError("Falha ao acessar SIOR")
@@ -132,6 +154,7 @@ def iniciar_sessao_sior(log=None):
 
         # Tenta carregar cookies e verificar se já está logado
         load_cookies(navegador, s)
+
         navegador.refresh()
         acessa_sior(navegador)
 
@@ -154,7 +177,7 @@ def iniciar_sessao_sior(log=None):
             navegador.quit()
             log_print("🔁 Reiniciando navegador em modo headless com cookies salvos...")
 
-            navegador = webdriver.Chrome(options=option_navegador(headless=True))
+            navegador = webdriver.Chrome(options=option_navegador(headless=False))
             navegador.get("https://servicos.dnit.gov.br/sior/Account/Login/?ReturnUrl=%2Fsior%2F")
             load_cookies(navegador, s)
             navegador.refresh()

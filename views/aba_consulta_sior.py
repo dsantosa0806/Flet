@@ -214,40 +214,60 @@ def aba_consulta(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page, bloquear, desbl
         page.update()
 
         def task():
+            navegador = None  # 🔥 GARANTE ESCOPO PARA O FINALLY
             try:
                 bloquear()
+
                 navegador, session = iniciar_sessao_sior()
+
                 total = len(codigos)
                 for idx, codigo in enumerate(codigos, start=1):
                     status_consulta.value = f"Consultando {idx}/{total}: {codigo}"
                     progress_consulta.value = idx / total
                     page.update()
+
                     resp = get_dados_auto(codigo, session)
+
                     for rec in resp.get("Data", []):
                         registro = {}
                         for k in cols:
                             valor = rec.get(k, "")
                             registro[k] = valor.get("DateString", "") if isinstance(valor, dict) else valor
                         tabela_resultados.append(registro)
-                filtro_situacao_fase.options = [ft.dropdown.Option(key=f, text=f)
-                                                for f in sorted({d.get("SituacaoFase", "")
-                                                                 for d in tabela_resultados}) if f]
-                filtro_situacao_debito.options = [ft.dropdown.Option(key=d, text=d)
-                                                  for d in sorted({d.get("SituacaoDebito", "")
-                                                                   for d in tabela_resultados}) if d]
+
+                filtro_situacao_fase.options = [
+                    ft.dropdown.Option(key=f, text=f)
+                    for f in sorted({d.get("SituacaoFase", "") for d in tabela_resultados}) if f
+                ]
+
+                filtro_situacao_debito.options = [
+                    ft.dropdown.Option(key=d, text=d)
+                    for d in sorted({d.get("SituacaoDebito", "") for d in tabela_resultados}) if d
+                ]
+
                 atualizar_tabela()
                 status_consulta.value = "✅ Concluído"
+
             except Exception as ex:
                 log_consulta.value = f"❌ Erro: {ex}"
                 status_consulta.value = "Erro"
+
             finally:
+                # 🔥 GARANTIA DE ENCERRAMENTO DO NAVEGADOR
+                if navegador:
+                    try:
+                        navegador.quit()
+                    except:
+                        pass
+
                 btn_consultar.disabled = False
                 btn_consultar.text = "Nova Consulta"
                 progress_consulta.visible = False
-                expander_input_consulta.expanded = False  # 👈 colapsa de verdade
-                expander_input_consulta.update()  # 👈 redesenha só o tile
+                expander_input_consulta.expanded = False
+                expander_input_consulta.update()
+
                 desbloquear()
-                page.update()  # 👈 redesenha a página
+                page.update()
 
         threading.Thread(target=task).start()
 

@@ -181,15 +181,21 @@ def aba_consulta_auto_cobranca(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page, b
         page.update()
 
         def task():
+            navegador = None  # 🔥 GARANTE ESCOPO NO FINALLY
             try:
                 bloquear()
+
                 navegador, session = iniciar_sessao_sior()
+
                 total = len(codigos)
+
                 for idx, codigo in enumerate(codigos, 1):
                     status.value = f"Consultando {idx}/{total}: {codigo}"
                     progress.value = idx / total
                     page.update()
+
                     resposta = get_dados_auto_cobranca(codigo, session)
+
                     for item in resposta.get("Data", []):
                         linha = {}
                         for k in cols:
@@ -199,14 +205,32 @@ def aba_consulta_auto_cobranca(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page, b
                             else:
                                 linha[k] = valor
                         tabela_resultados.append(linha)
-                filtro_tipo.options = [ft.dropdown.Option(key=f, text=f) for f in sorted({r.get("TipoRecuperacaoCredito", "") for r in tabela_resultados}) if f]
-                filtro_situacao.options = [ft.dropdown.Option(key=f, text=f) for f in sorted({r.get("SituacaoFase", "") for r in tabela_resultados}) if f]
+
+                filtro_tipo.options = [
+                    ft.dropdown.Option(key=f, text=f)
+                    for f in sorted({r.get("TipoRecuperacaoCredito", "") for r in tabela_resultados}) if f
+                ]
+
+                filtro_situacao.options = [
+                    ft.dropdown.Option(key=f, text=f)
+                    for f in sorted({r.get("SituacaoFase", "") for r in tabela_resultados}) if f
+                ]
+
                 atualizar_tabela()
                 status.value = "✅ Consulta concluída"
+
             except Exception as ex:
                 log.value = f"❌ Erro: {ex}"
                 status.value = "Erro"
+
             finally:
+                # 🔥 FECHAMENTO GARANTIDO DO NAVEGADOR
+                if navegador:
+                    try:
+                        navegador.quit()
+                    except Exception:
+                        pass
+
                 btn_consultar.disabled = False
                 btn_consultar.text = "Nova Consulta"
                 progress.visible = False

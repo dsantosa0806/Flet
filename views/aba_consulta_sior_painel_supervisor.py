@@ -298,6 +298,7 @@ def aba_consulta_sior_painel_supervisor(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE
         page.update()
 
         def task():
+            navegador = None
             nonlocal valores_equipes_saldos
             try:
                 bloquear()
@@ -320,6 +321,7 @@ def aba_consulta_sior_painel_supervisor(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE
             finally:
                 btn_consultar.disabled = False
                 progress.visible = False
+                navegador.quit()
                 desbloquear()
                 page.update()
 
