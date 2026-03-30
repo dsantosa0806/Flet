@@ -177,7 +177,7 @@ def iniciar_sessao_sior(log=None):
             navegador.quit()
             log_print("🔁 Reiniciando navegador em modo headless com cookies salvos...")
 
-            navegador = webdriver.Chrome(options=option_navegador(headless=False))
+            navegador = webdriver.Chrome(options=option_navegador(headless=True))
             navegador.get("https://servicos.dnit.gov.br/sior/Account/Login/?ReturnUrl=%2Fsior%2F")
             load_cookies(navegador, s)
             navegador.refresh()
