@@ -4,7 +4,6 @@ from config import APP_TITLE, current_version, URL_VERSAO
 
 
 VERSAO_LOCAL = current_version
-# VERSAO_LOCAL = 'teste'
 URL_VERSAO = URL_VERSAO
 
 
