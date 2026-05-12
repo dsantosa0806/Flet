@@ -1,6 +1,6 @@
 import os
 
-current_version = '1.2.0.4'
+current_version = '1.3.0'
 URL_VERSAO = "https://dsantosa0806.github.io/Flet/version.json"
 
 diretorio = r'C:\\'

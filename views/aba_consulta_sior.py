@@ -218,15 +218,33 @@ def aba_consulta(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page, bloquear, desbl
             try:
                 bloquear()
 
-                navegador, session = iniciar_sessao_sior()
+                def adicionar_log(mensagem):
+                    log_consulta.value += f"{mensagem}\n"
+                    status_consulta.value = mensagem
+                    page.update()
+
+                adicionar_log("🔐 Iniciando sessão SIOR...")
+
+                navegador, session = iniciar_sessao_sior(
+                    log=adicionar_log
+                )
+
+                adicionar_log("✅ Sessão iniciada com sucesso.")
 
                 total = len(codigos)
                 for idx, codigo in enumerate(codigos, start=1):
                     status_consulta.value = f"Consultando {idx}/{total}: {codigo}"
                     progress_consulta.value = idx / total
+
+                    log_consulta.value += f"🔎 Consultando AIT {codigo}...\n"
+
                     page.update()
 
                     resp = get_dados_auto(codigo, session)
+
+                    log_consulta.value += f"✅ Consulta concluída: {codigo}\n"
+
+                    page.update()
 
                     for rec in resp.get("Data", []):
                         registro = {}
@@ -249,14 +267,19 @@ def aba_consulta(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page, bloquear, desbl
                 status_consulta.value = "✅ Concluído"
 
             except Exception as ex:
-                log_consulta.value = f"❌ Erro: {ex}"
-                status_consulta.value = "Erro"
+                log_consulta.value += f"\n❌ Erro durante execução: {ex}\n"
+                status_consulta.value = "❌ Erro durante execução"
+                page.update()
 
             finally:
                 # 🔥 GARANTIA DE ENCERRAMENTO DO NAVEGADOR
                 if navegador:
                     try:
+                        log_consulta.value += "🧼 Encerrando navegador...\n"
+                        page.update()
                         navegador.quit()
+                        log_consulta.value += "✅ Navegador encerrado.\n"
+                        page.update()
                     except:
                         pass
 

@@ -43,6 +43,7 @@ def aba_inicial(ft, HEADING_FONT_SIZE, DEFAULT_FONT_SIZE, page):
                 size=DEFAULT_FONT_SIZE),
         ft.Divider(),
         ft.Text("⚠️ Dicas importantes:", size=DEFAULT_FONT_SIZE + 1, weight="bold"),
+
         ft.GestureDetector(
             content=ft.Text(
                 "• Mantenha o Google Chrome instalado e atualizado. "
@@ -62,6 +63,13 @@ def aba_inicial(ft, HEADING_FONT_SIZE, DEFAULT_FONT_SIZE, page):
             ),
             on_tap=lambda e: page.launch_url("https://drive.google.com/file/d/1RoblMwNnSIzX9-g-NKIQP3WDsytV8d6c/view")
         ),
+        ft.GestureDetector(
+            content=ft.Text(
+                "• Em caso de erro, feche e abra a automação. ",
+                size=DEFAULT_FONT_SIZE,
+                color=ft.Colors.RED,
+            ),
+            on_tap=lambda e: page.launch_url("")),
         ft.Container(height=20),
         ft.Text("✅ Para começar, selecione uma opção no menu acima.", size=DEFAULT_FONT_SIZE, italic=True),
     ], expand=True, scroll="auto", spacing=10)

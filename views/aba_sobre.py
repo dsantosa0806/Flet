@@ -52,6 +52,15 @@ def aba_sobre(ft, HEADING_FONT_SIZE, DEFAULT_FONT_SIZE):
         size=DEFAULT_FONT_SIZE
     )
 
+    titulo_cadin = ft.Text("🔍 Aba 'CADIN'", weight="bold", size=DEFAULT_FONT_SIZE)
+    conteudo_cadin = ft.Text(
+        "- Informe o TOKEN JWT após login manual no https://cadin.pgfn.gov.br/#/home.\n"
+        "- Informe o CPF ou CNPJ do devedor.\n"
+        "- Clique em 'Consultar CADIN'. Os registros serão exibidos em tabela.\n"
+        "- Você pode exportar todos os dados para Excel com o botão '📤 Exportar XLSX'.",
+        size=DEFAULT_FONT_SIZE
+    )
+
     titulo_erros = ft.Text("⚠️ Em caso de erros ou problemas", weight="bold", size=DEFAULT_FONT_SIZE)
     conteudo_erros = ft.Text(
         "- O Chrome deverá sempre estar atualizado para o correto funcionamento da aplicação.\n"
@@ -80,6 +89,9 @@ def aba_sobre(ft, HEADING_FONT_SIZE, DEFAULT_FONT_SIZE):
         ft.Divider(),
         titulo_painel_supervisor,
         conteudo_painel_supervisor,
+        ft.Divider(),
+        titulo_cadin,
+        conteudo_cadin,
         ft.Divider(),
         titulo_erros,
         conteudo_erros,

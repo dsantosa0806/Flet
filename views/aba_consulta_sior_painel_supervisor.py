@@ -57,6 +57,36 @@ def aba_consulta_sior_painel_supervisor(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE
     btn_exportar = ft.ElevatedButton("Exportar Excel", icon=ft.Icons.SAVE, visible=False)
     status = ft.Text("", size=DEFAULT_FONT_SIZE, color="blue", visible=False)
     progress = ft.ProgressBar(width=400, visible=False)
+    log_execucao = ft.TextField(
+        label="📝 Logs de Execução",
+        multiline=True,
+        read_only=True,
+        expand=True,
+        min_lines=10,
+        max_lines=10,
+        label_style=ft.TextStyle(size=DEFAULT_FONT_SIZE),
+        text_style=ft.TextStyle(size=DEFAULT_FONT_SIZE)
+    )
+
+    container_logs = ft.Container(
+        content=ft.Column(
+            [
+                ft.Text(
+                    "📋 Logs da Execução",
+                    size=DEFAULT_FONT_SIZE + 1,
+                    weight="bold"
+                ),
+                log_execucao
+            ],
+            spacing=10,
+            scroll=ft.ScrollMode.AUTO
+        ),
+        height=320,
+        padding=10,
+        border_radius=10,
+        border=ft.border.all(1, ft.Colors.GREY_600),
+        bgcolor=ft.Colors.with_opacity(0.05, ft.Colors.ON_SURFACE)
+    )
 
     cards_container = ft.Row(wrap=True, spacing=10, run_spacing=10)
     abas_indicadores = ft.Tabs(selected_index=0, tabs=[], visible=False, expand=True)
@@ -302,11 +332,33 @@ def aba_consulta_sior_painel_supervisor(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE
             nonlocal valores_equipes_saldos
             try:
                 bloquear()
-                status.value = "Iniciando Login"
-                navegador, session = iniciar_sessao_sior()
-                status.value = "Iniciando Varredura de dados..."
+
+                def adicionar_log(mensagem):
+                    log_execucao.value += f"{mensagem}\n"
+                    status.value = mensagem
+                    page.update()
+
+                adicionar_log("🔐 Iniciando login no SIOR...")
+
+                navegador, session = iniciar_sessao_sior(
+                    log=adicionar_log
+                )
+
+                adicionar_log("✅ Sessão SIOR iniciada com sucesso.")
+                adicionar_log("🔄 Iniciando varredura de dados...")
+
+                adicionar_log("📊 Extraindo acompanhamento SIOR...")
+
                 dados = get_acompanhamento_sior(equipe_id, session)
+
+                adicionar_log(f"✅ {len(dados)} registros de acompanhamento extraídos.")
+
+                adicionar_log("💰 Extraindo valores originais...")
+
                 valores_equipes_saldos = get_valores_original(equipe_id, session)
+
+                adicionar_log(f"✅ {len(valores_equipes_saldos)} registros financeiros extraídos.")
+
                 navegador.quit()
                 status.value = "Iniciando Tratamento de dados..."
                 dados_tabela.clear()
@@ -317,11 +369,17 @@ def aba_consulta_sior_painel_supervisor(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE
             except RuntimeError as ex:
                 status.value = f"❌ {str(ex)}"
             except Exception as ex:
+                log_execucao.value += f"\n❌ Erro durante execução: {ex}\n"
                 status.value = f"❌ Erro: {ex}"
+                page.update()
             finally:
                 btn_consultar.disabled = False
                 progress.visible = False
+                log_execucao.value += "🧼 Encerrando navegador...\n"
+                page.update()
                 navegador.quit()
+                log_execucao.value += "✅ Navegador encerrado.\n"
+                page.update()
                 desbloquear()
                 page.update()
 
@@ -338,6 +396,7 @@ def aba_consulta_sior_painel_supervisor(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE
         progress,
         cards_container,
         abas_indicadores,
+        container_logs,
         alerta_dialogo
     ], expand=True, spacing=10)
 

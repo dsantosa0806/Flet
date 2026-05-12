@@ -24,10 +24,17 @@ def executar_fluxo_completo(codigos_input,
     def log_print(msg):
         print(msg)
         if log:
-            log.value += f"\n{msg}"
+            log.value += f"{msg}\n"
+            try:
+                log.update()
+            except:
+                pass
 
     options = option_navegador()
-    navegador, s = iniciar_sessao_sior(log=None)
+
+    navegador, s = iniciar_sessao_sior(
+        log=log_print
+    )
 
     # Verifica se o login já está autenticado
     if not elemento_existe(navegador, By.XPATH, '//*[@id="center-pane"]/div/div/div[1]/div[2]'):
@@ -67,6 +74,7 @@ def executar_fluxo_completo(codigos_input,
     try:
         codigos = [c.strip() for c in codigos_input.splitlines() if c.strip()]
         for i, ait in enumerate(codigos, 1):
+            log_print(f"🔎 Iniciando processamento do AIT: {ait}")
             if baixar_financeiro:
                 status = get_relatorio_financeiro(ait, s, pasta_destino)
                 log_print(f"{'⚠' if status else '📄'} {'Falha' if status else 'Financeiro baixado'}: {ait}")

@@ -185,13 +185,41 @@ def aba_consulta_auto_cobranca(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page, b
             try:
                 bloquear()
 
-                navegador, session = iniciar_sessao_sior()
+                log.value += "🔐 Iniciando sessão SIOR...\n"
+                status.value = "🔐 Iniciando sessão SIOR..."
+                page.update()
+
+                log.value += "🌐 Abrindo navegador...\n"
+                status.value = "🌐 Abrindo navegador..."
+                page.update()
+
+                def adicionar_log(mensagem):
+                    log.value += f"{mensagem}\n"
+                    status.value = mensagem
+                    page.update()
+
+                navegador, session = iniciar_sessao_sior(
+                    log=adicionar_log
+                )
+
+                log.value += "✅ Sessão iniciada com sucesso.\n"
+                status.value = "✅ Sessão iniciada com sucesso."
+                page.update()
 
                 total = len(codigos)
 
                 for idx, codigo in enumerate(codigos, 1):
                     status.value = f"Consultando {idx}/{total}: {codigo}"
                     progress.value = idx / total
+
+                    log.value += f"🔎 Consultando AIT {codigo}...\n"
+
+                    page.update()
+
+                    resposta = get_dados_auto_cobranca(codigo, session)
+
+                    log.value += f"✅ Consulta finalizada: {codigo}\n"
+
                     page.update()
 
                     resposta = get_dados_auto_cobranca(codigo, session)
@@ -220,14 +248,19 @@ def aba_consulta_auto_cobranca(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page, b
                 status.value = "✅ Consulta concluída"
 
             except Exception as ex:
-                log.value = f"❌ Erro: {ex}"
-                status.value = "Erro"
+                log.value += f"\n❌ Erro durante execução: {ex}\n"
+                status.value = "❌ Erro durante execução"
+                page.update()
 
             finally:
                 # 🔥 FECHAMENTO GARANTIDO DO NAVEGADOR
                 if navegador:
                     try:
+                        log.value += "🧼 Encerrando navegador...\n"
+                        page.update()
                         navegador.quit()
+                        log.value += "✅ Navegador encerrado.\n"
+                        page.update()
                     except Exception:
                         pass
 
