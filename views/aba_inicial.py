@@ -10,7 +10,7 @@ def aba_inicial(ft, HEADING_FONT_SIZE, DEFAULT_FONT_SIZE, page):
         alerta_versao = ft.Container(
             content=ft.Column([
                 ft.Text("🚨 Nova versão disponível!", size=DEFAULT_FONT_SIZE + 2, weight="bold", color=ft.Colors.RED),
-                ft.Text(f"Versão atual: 1.3.0", size=DEFAULT_FONT_SIZE),
+                ft.Text(f"Versão atual: 1.3.1", size=DEFAULT_FONT_SIZE),
                 ft.Text(f"Nova versão: {versao_info['nova_versao']}", size=DEFAULT_FONT_SIZE),
                 ft.Text(f"Novidades:\n{versao_info['changelog']}", size=DEFAULT_FONT_SIZE),
                 ft.TextButton("📥 Baixar atualização", on_click=lambda _: page.launch_url(versao_info['link']))
