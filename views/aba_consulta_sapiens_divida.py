@@ -369,7 +369,7 @@ def aba_consulta_sapiens(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page, bloquea
                 desbloquear()
                 page.update()
 
-        threading.Thread(target=task).start()
+        threading.Thread(target=task, daemon=True).start()
 
     # Eventos
     btn_consultar_doc.on_click = run_consult
