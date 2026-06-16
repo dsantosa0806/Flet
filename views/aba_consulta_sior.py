@@ -292,7 +292,7 @@ def aba_consulta(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page, bloquear, desbl
                 desbloquear()
                 page.update()
 
-        threading.Thread(target=task).start()
+        threading.Thread(target=task, daemon=True).start()
 
     # === EVENTOS ===
     btn_consultar.on_click = run_consulta

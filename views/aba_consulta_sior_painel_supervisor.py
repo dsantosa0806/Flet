@@ -312,6 +312,7 @@ def aba_consulta_sior_painel_supervisor(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE
 
         equipe_id = dropdown_equipes.value
         salvar_preferencias(equipe_id)
+
         if not equipe_id:
             status.value = "⚠ Selecione uma equipe."
             status.visible = True
@@ -322,21 +323,29 @@ def aba_consulta_sior_painel_supervisor(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE
         status.value = "🔄 Iniciando..."
         progress.visible = True
         btn_consultar.disabled = True
+        btn_consultar.text = "Consultando..."
         cards_container.controls.clear()
         abas_indicadores.tabs.clear()
         abas_indicadores.visible = False
+        log_execucao.value = ""
         page.update()
 
         def task():
             navegador = None
-            nonlocal valores_equipes_saldos
-            try:
-                bloquear()
+            session = None
 
-                def adicionar_log(mensagem):
+            nonlocal valores_equipes_saldos
+
+            def adicionar_log(mensagem):
+                try:
                     log_execucao.value += f"{mensagem}\n"
                     status.value = mensagem
                     page.update()
+                except Exception:
+                    pass
+
+            try:
+                bloquear()
 
                 adicionar_log("🔐 Iniciando login no SIOR...")
 
@@ -344,46 +353,69 @@ def aba_consulta_sior_painel_supervisor(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE
                     log=adicionar_log
                 )
 
+                if navegador is None or session is None:
+                    raise RuntimeError("Não foi possível iniciar a sessão SIOR.")
+
                 adicionar_log("✅ Sessão SIOR iniciada com sucesso.")
                 adicionar_log("🔄 Iniciando varredura de dados...")
 
                 adicionar_log("📊 Extraindo acompanhamento SIOR...")
-
                 dados = get_acompanhamento_sior(equipe_id, session)
-
                 adicionar_log(f"✅ {len(dados)} registros de acompanhamento extraídos.")
 
                 adicionar_log("💰 Extraindo valores originais...")
-
                 valores_equipes_saldos = get_valores_original(equipe_id, session)
-
                 adicionar_log(f"✅ {len(valores_equipes_saldos)} registros financeiros extraídos.")
 
-                navegador.quit()
-                status.value = "Iniciando Tratamento de dados..."
+                adicionar_log("🧮 Iniciando tratamento dos dados...")
+
                 dados_tabela.clear()
-                dados_tabela.extend({k: (v[:10] if isinstance(v, str) and v.endswith("T00:00:00") else v)
-                                     for k, v in item.items()} for item in dados)
+                dados_tabela.extend(
+                    {
+                        k: (v[:10] if isinstance(v, str) and v.endswith("T00:00:00") else v)
+                        for k, v in item.items()
+                    }
+                    for item in dados
+                )
+
                 status.value = f"✅ {len(dados_tabela)} registros encontrados."
+                adicionar_log(f"✅ Tratamento concluído: {len(dados_tabela)} registros disponíveis.")
+
                 preencher_tabela()
+
             except RuntimeError as ex:
                 status.value = f"❌ {str(ex)}"
-            except Exception as ex:
-                log_execucao.value += f"\n❌ Erro durante execução: {ex}\n"
-                status.value = f"❌ Erro: {ex}"
-                page.update()
-            finally:
-                btn_consultar.disabled = False
-                progress.visible = False
-                log_execucao.value += "🧼 Encerrando navegador...\n"
-                page.update()
-                navegador.quit()
-                log_execucao.value += "✅ Navegador encerrado.\n"
-                page.update()
-                desbloquear()
-                page.update()
+                adicionar_log(f"❌ {str(ex)}")
 
-        threading.Thread(target=task).start()
+            except Exception as ex:
+                status.value = f"❌ Erro: {ex}"
+                adicionar_log(f"❌ Erro durante execução: {ex}")
+
+            finally:
+                # =====================================================
+                # ENCERRAMENTO SEGURO DO NAVEGADOR
+                # =====================================================
+                if navegador:
+                    try:
+                        adicionar_log("🧼 Encerrando navegador...")
+                        navegador.quit()
+                        adicionar_log("✅ Navegador encerrado.")
+                    except Exception as ex_quit:
+                        adicionar_log(f"⚠️ Falha ao encerrar navegador: {ex_quit}")
+
+                # =====================================================
+                # DESBLOQUEIO GARANTIDO DA INTERFACE
+                # =====================================================
+                try:
+                    btn_consultar.disabled = False
+                    btn_consultar.text = "Nova Consulta"
+                    progress.visible = False
+                    desbloquear()
+                    page.update()
+                except Exception as ex_ui:
+                    print(f"Erro ao restaurar interface: {ex_ui}")
+
+        threading.Thread(target=task, daemon=True).start()
 
     btn_consultar.on_click = run_consulta
     btn_exportar.on_click = exportar_excel

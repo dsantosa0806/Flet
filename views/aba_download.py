@@ -171,7 +171,7 @@ def aba_download(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page, bloquear, desbl
                 desbloquear()
                 page.update()
 
-        threading.Thread(target=task).start()
+        threading.Thread(target=task, daemon=True).start()
 
     def validar_codigos(codigos, financeiro, resumido):
         erros = []

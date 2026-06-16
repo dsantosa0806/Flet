@@ -11,6 +11,10 @@ caminho_destino_padrao = r'C:\Extracao-Relatorio-Financeiro-Processo-Arquivos'
 COOKIE_PATH = r'C:\Cookies-Selenium\cookies_sapiens.json'
 COOKIE_PATH_SAPIENS = os.path.join(os.path.expanduser("~"), ".sapiens_cache.json")
 CACHE_PATH_SUPERVISOR = os.path.join(os.path.expanduser("~"), ".sior_supervisor_cache.json")
+SIOR_PROFILE_DIR = r"C:\Selenium-Profiles\SIOR"
+SIOR_PROFILE_NAME = "Default"
+SIOR_COOKIES_DIR = r"C:\Cookies-Selenium"
+SIOR_COOKIES_FILE = "cookies.json"
 
 # Constantes de estilo
 DEFAULT_FONT_SIZE = 12
@@ -19,3 +23,4 @@ PAGE_TITLE_SIZE = 10
 WINDOW_WIDTH = 1200
 WINDOW_HEIGHT = 1024
 APP_TITLE = "RPA Search Data"
+
