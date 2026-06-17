@@ -2,7 +2,7 @@ import os
 import json
 from datetime import datetime, timezone
 import config
-
+from utils.locate_files_instalador import caminho_recurso
 
 # =========================================================
 # CONFIGURAÇÕES DO COOKIES.JSON DO SIOR
@@ -474,22 +474,21 @@ def _criar_conteudo_imagem_ampliada(ft, caminho_img, titulo, on_voltar):
 
 def _criar_area_imagens(ft, page, imagens=None, on_ampliar=None):
     """
-    Cria área visual para prints de instrução.
+    Cria miniaturas compactas dos prints de instrução.
 
-    Exemplo:
-    imagens=[
-        "assets/sior_login_1.png",
-        "assets/sior_login_2.png",
-        "assets/sior_login_3.png",
-    ]
+    A ampliação não é modificada.
+    Ao clicar em qualquer miniatura, mantém o fluxo atual via on_ampliar().
     """
 
     imagens = imagens or []
     controles = []
 
+    tamanho_card = 118
+    tamanho_imagem = 82
+
     if imagens:
         for idx, caminho_img in enumerate(imagens, start=1):
-            titulo_img = f"Print {idx}"
+            titulo_img = f"Passo {idx}"
 
             def clicar_imagem(e, img=caminho_img, titulo=titulo_img):
                 if callable(on_ampliar):
@@ -497,40 +496,51 @@ def _criar_area_imagens(ft, page, imagens=None, on_ampliar=None):
 
             controles.append(
                 ft.Container(
+                    width=tamanho_card,
+                    height=tamanho_card,
+                    padding=6,
+                    border_radius=12,
+                    ink=True,
+                    tooltip=f"Clique para ampliar o {titulo_img}",
+                    on_click=clicar_imagem,
+                    border=ft.border.all(1, ft.Colors.GREY_400),
                     content=ft.Column(
                         [
-                            ft.Row(
-                                [
-                                    ft.Text(titulo_img, size=11, weight="bold"),
-                                    ft.Text(
-                                        "Clique na imagem para ampliar",
-                                        size=10,
-                                        italic=True,
-                                        color=ft.Colors.GREY_500
-                                    )
-                                ],
-                                alignment=ft.MainAxisAlignment.SPACE_BETWEEN
-                            ),
-
                             ft.Container(
+                                width=tamanho_imagem,
+                                height=tamanho_imagem,
+                                border_radius=10,
+                                clip_behavior=ft.ClipBehavior.ANTI_ALIAS,
                                 content=ft.Image(
                                     src=caminho_img,
-                                    width=520,
-                                    height=260,
-                                    fit=ft.ImageFit.CONTAIN,
-                                    border_radius=8
+                                    width=tamanho_imagem,
+                                    height=tamanho_imagem,
+                                    fit=ft.ImageFit.COVER,
                                 ),
-                                padding=5,
-                                border_radius=8,
-                                ink=True,
-                                on_click=clicar_imagem
+                                alignment=ft.alignment.center,
+                            ),
+                            ft.Row(
+                                [
+                                    ft.Icon(
+                                        ft.Icons.ZOOM_IN,
+                                        size=13,
+                                        color=ft.Colors.GREY_600
+                                    ),
+                                    ft.Text(
+                                        titulo_img,
+                                        size=10,
+                                        weight="bold",
+                                        color=ft.Colors.GREY_700
+                                    ),
+                                ],
+                                alignment=ft.MainAxisAlignment.CENTER,
+                                spacing=4
                             )
                         ],
-                        spacing=5
-                    ),
-                    padding=10,
-                    border_radius=10,
-                    border=ft.border.all(1, ft.Colors.GREY_400)
+                        spacing=5,
+                        alignment=ft.MainAxisAlignment.CENTER,
+                        horizontal_alignment=ft.CrossAxisAlignment.CENTER
+                    )
                 )
             )
 
@@ -538,33 +548,45 @@ def _criar_area_imagens(ft, page, imagens=None, on_ampliar=None):
         for idx in range(1, 4):
             controles.append(
                 ft.Container(
+                    width=tamanho_card,
+                    height=tamanho_card,
+                    padding=8,
+                    border_radius=12,
+                    border=ft.border.all(1, ft.Colors.GREY_400),
+                    alignment=ft.alignment.center,
                     content=ft.Column(
                         [
-                            ft.Text(f"Espaço para print {idx}", size=11, weight="bold"),
-                            ft.Text(
-                                "Adicione futuramente uma imagem com o passo a passo do login.",
-                                size=10,
-                                italic=True,
+                            ft.Icon(
+                                ft.Icons.IMAGE_OUTLINED,
+                                size=28,
                                 color=ft.Colors.GREY_500
+                            ),
+                            ft.Text(
+                                f"Print {idx}",
+                                size=10,
+                                weight="bold",
+                                text_align=ft.TextAlign.CENTER
+                            ),
+                            ft.Text(
+                                "Não adicionado",
+                                size=9,
+                                italic=True,
+                                color=ft.Colors.GREY_500,
+                                text_align=ft.TextAlign.CENTER
                             )
                         ],
+                        spacing=4,
                         alignment=ft.MainAxisAlignment.CENTER,
-                        horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                        spacing=5
-                    ),
-                    width=520,
-                    height=140,
-                    padding=10,
-                    border_radius=10,
-                    border=ft.border.all(1, ft.Colors.GREY_400),
-                    alignment=ft.alignment.center
+                        horizontal_alignment=ft.CrossAxisAlignment.CENTER
+                    )
                 )
             )
 
-    return ft.Column(
+    return ft.Row(
         controles,
         spacing=10,
-        scroll=ft.ScrollMode.AUTO
+        alignment=ft.MainAxisAlignment.START,
+        vertical_alignment=ft.CrossAxisAlignment.CENTER
     )
 
 
@@ -742,7 +764,7 @@ def abrir_janela_login_manual_sior(
                 ft.Text("Etapas sugeridas", size=13, weight="bold"),
                 ft.Text(
                     "1. Abra o SIOR no SEU navegador e realize o login normalmente pelo Gov.br. Utilize "
-                    "preferencialmente o Chrome",
+                    "preferencialmente o Chrome (Passo 1)",
                     size=11
                 ),
                 ft.Text(
@@ -763,21 +785,22 @@ def abrir_janela_login_manual_sior(
                             style=ft.TextStyle(weight="bold")
                         ),
                         ft.TextSpan(
-                            ". Nessa área estarão disponíveis os cookies necessários para preencher os campos abaixo."
+                            ". Nessa área estarão disponíveis os cookies necessários para preencher os campos abaixo"
+                            " (Passo 2)."
                         ),
                     ],
                     size=11
                 ),
                 ft.Text(
-                    "3. Localize os cookies ASP.NET_SessionId e .SIOR_AUTH_prod_v2.",
+                    "3. Localize os cookies ASP.NET_SessionId e .SIOR_AUTH_prod_v2 (Passo 3).",
                     size=11
                 ),
                 ft.Text(
-                    "4. Copie os campos solicitados abaixo exatamente como aparecem no navegador.",
+                    "4. Copie os campos solicitados abaixo exatamente como aparecem no navegador (Passo 3).",
                     size=11
                 ),
                 ft.Text(
-                    "5. Clique em Salvar cookies e tente realizar a consulta/Download SIOR novamente.",
+                    "5. Clique em Salvar cookies e tente realizar a consulta/Download SIOR novamente (Passo 3).",
                     size=11
                 ),
 
@@ -785,15 +808,26 @@ def abrir_janela_login_manual_sior(
 
                 ft.Text("Prints de apoio", size=13, weight="bold"),
                 ft.Container(
-                    content=_criar_area_imagens(
-                        ft,
-                        page,
-                        imagens=imagens,
-                        on_ampliar=ampliar_imagem
+                    content=ft.Column(
+                        [
+                            ft.Text(
+                                "Clique em uma miniatura para visualizar o passo em tela ampliada.",
+                                size=10,
+                                italic=True,
+                                color=ft.Colors.GREY_600
+                            ),
+                            _criar_area_imagens(
+                                ft,
+                                page,
+                                imagens=imagens,
+                                on_ampliar=ampliar_imagem
+                            )
+                        ],
+                        spacing=8
                     ),
-                    height=210,
-                    padding=5,
-                    border_radius=8,
+                    height=155,
+                    padding=10,
+                    border_radius=10,
                     border=ft.border.all(1, ft.Colors.GREY_300)
                 ),
 
@@ -949,10 +983,9 @@ def aba_login_manual_sior(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page):
     )
 
     imagens_instrucao = [
-        # Adicione seus prints aqui futuramente:
-        r"images\sior_login_1.png",
-        r"images\sior_login_2.png",
-        r"images\sior_login_3.png",
+        caminho_recurso(r"images\sior_login_1.png"),
+        caminho_recurso(r"images\sior_login_2.png"),
+        caminho_recurso(r"images\sior_login_3.png"),
     ]
 
     def on_cookie_salvo(caminho):

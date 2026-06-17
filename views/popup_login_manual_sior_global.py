@@ -4,7 +4,7 @@ import threading
 from datetime import datetime, timezone
 
 import config
-
+from utils.locate_files_instalador import caminho_recurso
 
 # =========================================================
 # CONFIGURAÇÕES DO COOKIES.JSON DO SIOR
@@ -28,9 +28,9 @@ SIOR_COOKIES_FILE = getattr(
 # =========================================================
 
 IMAGENS_PADRAO_LOGIN_MANUAL_SIOR = [
-    r"images\sior_login_1.png",
-    r"images\sior_login_2.png",
-    r"images\sior_login_3.png"
+    caminho_recurso(r"images\sior_login_1.png"),
+    caminho_recurso(r"images\sior_login_2.png"),
+    caminho_recurso(r"images\sior_login_3.png"),
 ]
 
 _CONTEXTO_POPUP_LOGIN_MANUAL_SIOR = {
