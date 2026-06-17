@@ -2,14 +2,74 @@ import pandas as pd
 import re
 from datetime import datetime
 
-df_param = pd.read_excel(r'C:\Users\Daniel\Desktop\Projetos Dev\Varredura-SIOR-Cadastro-Divida\dados.xlsx')
-df_resultado2 = pd.read_excel(r'C:\Users\Daniel\Desktop\Projetos Dev\Varredura-SIOR-Cadastro-Divida\dados_finais.xlsx')
 
 # Mostra todas as colunas
 pd.set_option('display.max_columns', None)
-
 # Aumenta a largura máxima da tela para não quebrar visualmente
 pd.set_option('display.width', None)
+
+
+def limpar_valor_monetario(valor):
+    """
+    Converte valores monetários do SIOR para float.
+
+    Exemplos aceitos:
+    - R$ 1.234,56
+    - 1.234,56
+    - 1234,56
+    - 1234.56
+
+    Valores inválidos, como 'Valor Original' ou 'Não informado',
+    retornam 0.0 para não quebrar a varredura.
+    """
+
+    try:
+        if pd.isna(valor):
+            return 0.0
+
+        valor = str(valor).strip()
+
+        if not valor:
+            return 0.0
+
+        valores_invalidos = {
+            "valor original",
+            "não informado",
+            "nao informado",
+            "none",
+            "nan",
+            "-"
+        }
+
+        if valor.lower() in valores_invalidos:
+            return 0.0
+
+        valor = (
+            valor
+            .replace("R$", "")
+            .replace("\xa0", "")
+            .replace(" ", "")
+            .strip()
+        )
+
+        # Remove qualquer caractere que não seja número, ponto, vírgula ou sinal.
+        valor = re.sub(r"[^0-9,.-]", "", valor)
+
+        if not valor:
+            return 0.0
+
+        # Padrão brasileiro: 1.234,56
+        if "," in valor:
+            valor = (
+                valor
+                .replace(".", "")
+                .replace(",", ".")
+            )
+
+        return float(valor)
+
+    except Exception:
+        return 0.0
 
 
 def etl_data(df_param, df_resultado2):
@@ -67,9 +127,15 @@ def etl_data(df_param, df_resultado2):
     df_extraido.insert(6, 'Data de Início da Taxa SELIC - Análise e Conferência Sapiens',
                        df['Data de Início da Taxa SELIC - Análise e Conferência Sapiens'])
 
-    df_valor = df['Valor Original - Financeiro'].astype(str).str.replace('R$', '', regex=False)\
-        .str.replace('.', '', regex=False).str.replace(',', '.', regex=False).str.strip()
-    df_extraido.insert(7, 'Valor Original - Financeiro', df_valor.astype(float))
+    df_valor = df["Valor Original - Financeiro"].apply(
+        limpar_valor_monetario
+    )
+
+    df_extraido.insert(
+        7,
+        "Valor Original - Financeiro",
+        df_valor
+    )
 
     df_extraido.insert(8, 'Modalidade', 'AUTO DE INFRAÇÃO')
     df_extraido.insert(9, 'Número do Auto2', df['Número do Auto - Auto de Infração'])

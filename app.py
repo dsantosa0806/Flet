@@ -8,7 +8,7 @@ from views.aba_consulta_sior_proprietario import aba_consulta_sior_proprietario
 from views.aba_download import aba_download
 from views.aba_sobre import aba_sobre
 from views.popup_login_sior_manual import aba_login_manual_sior
-from config import DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, WINDOW_WIDTH, WINDOW_HEIGHT, APP_TITLE
+from config import DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, WINDOW_WIDTH, WINDOW_HEIGHT, APP_TITLE, IS_ADMIN, APP_PROFILE
 from views.aba_inicial import aba_inicial
 from views.aba_consulta_sior_cobranca_devedor import aba_consulta_auto_cobranca_devedor
 from views.aba_copia_pa import aba_copia_pa
@@ -19,6 +19,8 @@ import threading
 from utils.popups import mostrar_alerta
 from core.auth import obter_perfil_aplicacao
 from core.permissoes import Recurso, tem_permissao
+from views.admin.aba_admin_varredura_sior import aba_admin_varredura_sior
+from views.admin.aba_admin_sapiens_tarefas import aba_admin_sapiens_tarefas
 
 
 def construir_cabecalho(toggle_switch):
@@ -173,8 +175,21 @@ def main(page: ft.Page):
         selectable=True
     )
 
+    txt_perfil = ft.Container(
+        content=ft.Text(
+            f"Perfil: {APP_PROFILE}",
+            size=10,
+            weight="bold",
+            color="white"
+        ),
+        bgcolor=ft.Colors.RED_600 if IS_ADMIN else ft.Colors.BLUE_600,
+        padding=ft.padding.symmetric(horizontal=10, vertical=4),
+        border_radius=20
+    )
+
     cabecalho = ft.Row([
         ft.Text(APP_TITLE, size=HEADING_FONT_SIZE, weight="bold"),
+        txt_perfil,
         ft.Container(expand=True),
         txt_expiracao_login,
         toggle_switch
@@ -203,32 +218,62 @@ def main(page: ft.Page):
             page.update()
             return
 
-        def atualizar_conteudo(opcao: str):
-            if bloqueio_navegacao.current:
-                page.snack_bar = ft.SnackBar(
-                    ft.Text("⚠ Aguarde a finalização do processo atual antes de trocar de aba."),
-                    bgcolor=ft.Colors.AMBER
-                )
-                page.snack_bar.open = True
-                page.update()
-                return
+        try:
+            recurso = Recurso(opcao)
+        except ValueError:
+            recurso = None
 
-            try:
-                recurso = Recurso(opcao)
-            except ValueError:
-                recurso = None
-
-            if recurso and not tem_permissao(perfil_atual, recurso):
-                conteudo_abas.content = acesso_negado()
-                page.snack_bar = ft.SnackBar(
-                    ft.Text("🔒 Acesso restrito ao perfil administrador."),
-                    bgcolor=ft.Colors.RED_400
-                )
-                page.snack_bar.open = True
-                page.update()
-                return
+        if recurso and not tem_permissao(perfil_atual, recurso):
+            conteudo_abas.content = acesso_negado()
+            page.snack_bar = ft.SnackBar(
+                ft.Text("🔒 Acesso restrito ao perfil administrador."),
+                bgcolor=ft.Colors.RED_400
+            )
+            page.snack_bar.open = True
+            page.update()
+            return
 
         match opcao:
+            case "ADMIN_Varredura_SIOR":
+                if not IS_ADMIN:
+                    conteudo_abas.content = acesso_negado()
+                    page.snack_bar = ft.SnackBar(
+                        ft.Text("🔒 Acesso restrito ao administrador."),
+                        bgcolor=ft.Colors.RED_400
+                    )
+                    page.snack_bar.open = True
+                    page.update()
+                    return
+
+                conteudo_abas.content = aba_admin_varredura_sior(
+                    ft,
+                    DEFAULT_FONT_SIZE,
+                    HEADING_FONT_SIZE,
+                    page,
+                    bloquear,
+                    desbloquear
+                )
+
+            case "ADMIN_Sapiens_Tarefas":
+                if not IS_ADMIN:
+                    conteudo_abas.content = acesso_negado()
+                    page.snack_bar = ft.SnackBar(
+                        ft.Text("🔒 Acesso restrito ao administrador."),
+                        bgcolor=ft.Colors.RED_400
+                    )
+                    page.snack_bar.open = True
+                    page.update()
+                    return
+
+                conteudo_abas.content = aba_admin_sapiens_tarefas(
+                    ft,
+                    DEFAULT_FONT_SIZE,
+                    HEADING_FONT_SIZE,
+                    page,
+                    bloquear,
+                    desbloquear
+                )
+
             case "SIOR_Consulta":
                 conteudo_abas.content = aba_consulta(
                     ft,
@@ -493,6 +538,29 @@ def main(page: ft.Page):
     # =========================================================
     # HOME
     # =========================================================
+    menu_admin = None
+
+    if IS_ADMIN:
+        menu_admin = ft.SubmenuButton(
+            content=texto_menu_principal("Admin"),
+            controls=somente_permitidos([
+                item_menu(
+                    "Varredura SIOR - Cadastro Dívida",
+                    ft.Icons.ADMIN_PANEL_SETTINGS,
+                    "ADMIN_Varredura_SIOR",
+                    largura=280,
+                    permitido=True
+                ),
+
+                item_menu(
+                    "Sapiens - Relatórios de Tarefas",
+                    ft.Icons.ASSIGNMENT_OUTLINED,
+                    "ADMIN_Sapiens_Tarefas",
+                    largura=280,
+                    permitido=True
+                ),
+            ])
+        )
 
     menu_home = ft.SubmenuButton(
         content=texto_menu_principal("Home"),
@@ -648,6 +716,7 @@ def main(page: ft.Page):
 
     menu = ft.MenuBar(
         controls=somente_permitidos([
+            menu_admin,
             menu_home,
             menu_sior,
             menu_sapiens,
@@ -672,6 +741,3 @@ def main(page: ft.Page):
 
     page.add(layout)
 
-
-if __name__ == "__main__":
-    ft.app(target=main)

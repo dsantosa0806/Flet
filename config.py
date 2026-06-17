@@ -61,6 +61,7 @@ SIOR_PROFILE_DIR = r"C:\Selenium-Profiles\SIOR"
 SIOR_PROFILE_NAME = "Default"
 SIOR_COOKIES_DIR = r"C:\Cookies-Selenium"
 SIOR_COOKIES_FILE = "cookies.json"
+PASTA_EXPORT_ADMIN = r"C:\Downloads"
 
 # Constantes de estilo
 DEFAULT_FONT_SIZE = 12

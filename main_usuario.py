@@ -1,7 +1,9 @@
 import os
 import flet as ft
-from app import main
 
 os.environ["SIOR_APP_PROFILE"] = "USUARIO"
 
-ft.app(target=main)
+from app import main
+
+if __name__ == "__main__":
+    ft.app(target=main)
