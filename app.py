@@ -17,6 +17,8 @@ from utils.expiry_login import obter_texto_expiracoes_login
 from navegador.sior_selenium_execution import finalizar_navegadores_sior_imediato
 import threading
 from utils.popups import mostrar_alerta
+from core.auth import obter_perfil_aplicacao
+from core.permissoes import Recurso, tem_permissao
 
 
 def construir_cabecalho(toggle_switch):
@@ -27,6 +29,28 @@ def construir_cabecalho(toggle_switch):
 
 
 def main(page: ft.Page):
+    perfil_atual = obter_perfil_aplicacao()
+
+    def acesso_negado():
+        return ft.Column(
+            [
+                ft.Icon(ft.Icons.LOCK_OUTLINE, size=48, color=ft.Colors.RED_400),
+                ft.Text(
+                    "Acesso não autorizado",
+                    size=HEADING_FONT_SIZE,
+                    weight="bold",
+                    color=ft.Colors.RED_400
+                ),
+                ft.Text(
+                    "Seu perfil não possui permissão para acessar esta funcionalidade.",
+                    size=DEFAULT_FONT_SIZE
+                )
+            ],
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            alignment=ft.MainAxisAlignment.CENTER,
+            expand=True
+        )
+
     bloqueio_navegacao = ft.Ref[bool]()
     bloqueio_navegacao.current = False
 
@@ -179,6 +203,31 @@ def main(page: ft.Page):
             page.update()
             return
 
+        def atualizar_conteudo(opcao: str):
+            if bloqueio_navegacao.current:
+                page.snack_bar = ft.SnackBar(
+                    ft.Text("⚠ Aguarde a finalização do processo atual antes de trocar de aba."),
+                    bgcolor=ft.Colors.AMBER
+                )
+                page.snack_bar.open = True
+                page.update()
+                return
+
+            try:
+                recurso = Recurso(opcao)
+            except ValueError:
+                recurso = None
+
+            if recurso and not tem_permissao(perfil_atual, recurso):
+                conteudo_abas.content = acesso_negado()
+                page.snack_bar = ft.SnackBar(
+                    ft.Text("🔒 Acesso restrito ao perfil administrador."),
+                    bgcolor=ft.Colors.RED_400
+                )
+                page.snack_bar.open = True
+                page.update()
+                return
+
         match opcao:
             case "SIOR_Consulta":
                 conteudo_abas.content = aba_consulta(
@@ -315,6 +364,10 @@ def main(page: ft.Page):
     # MENU PRINCIPAL COM SUBMENUS E ÍCONES SIMPLES
     # =========================================================
 
+    # =========================================================
+    # MENU PRINCIPAL COM SUBMENUS E ÍCONES SIMPLES
+    # =========================================================
+
     def texto_menu_principal(texto: str):
         return ft.Container(
             content=ft.Text(
@@ -322,7 +375,10 @@ def main(page: ft.Page):
                 weight="bold",
                 no_wrap=True
             ),
-            padding=ft.padding.symmetric(horizontal=4, vertical=2)
+            padding=ft.padding.symmetric(
+                horizontal=4,
+                vertical=2
+            )
         )
 
     def texto_item_menu(texto: str, largura: int = 250):
@@ -333,181 +389,271 @@ def main(page: ft.Page):
                 overflow=ft.TextOverflow.VISIBLE
             ),
             width=largura,
-            padding=ft.padding.symmetric(horizontal=2, vertical=2)
+            padding=ft.padding.symmetric(
+                horizontal=2,
+                vertical=2
+            )
         )
 
-    def item_menu(texto: str, icone, destino: str, largura: int = 250):
+    def somente_permitidos(controles):
+        """
+        Remove itens None da lista de controles.
+
+        Hoje todos os menus são de acesso geral.
+        No futuro, quando houver módulos restritos,
+        o item_menu poderá retornar None para esconder
+        opções não permitidas.
+        """
+        return [
+            controle
+            for controle in controles
+            if controle is not None
+        ]
+
+    def item_menu(
+            texto: str,
+            icone,
+            destino: str,
+            largura: int = 250,
+            permitido: bool = True
+    ):
+        """
+        Cria um item de menu.
+
+        Parâmetro permitido:
+        - True: exibe o item normalmente.
+        - False: retorna None e o item será removido
+          pelo somente_permitidos().
+        """
+
+        if not permitido:
+            return None
+
         return ft.MenuItemButton(
-            leading=ft.Icon(icone, size=18),
-            content=texto_item_menu(texto, largura),
-            on_click=lambda e: atualizar_conteudo(destino)
+            leading=ft.Icon(
+                icone,
+                size=18
+            ),
+            content=texto_item_menu(
+                texto,
+                largura
+            ),
+            on_click=lambda e: atualizar_conteudo(
+                destino
+            )
         )
 
-    def submenu_menu(texto: str, icone, controles, largura: int = 250):
+    def submenu_menu(
+            texto: str,
+            icone,
+            controles,
+            largura: int = 250
+    ):
+        """
+        Cria um submenu com ícone e seta lateral.
+        """
+
+        controles = somente_permitidos(controles)
+
+        if not controles:
+            return None
+
         return ft.SubmenuButton(
             content=ft.Container(
                 content=ft.Row(
                     controls=[
-                        ft.Icon(icone, size=18),
-                        ft.Text(texto, no_wrap=True),
-                        ft.Container(expand=True),
-                        ft.Icon(ft.Icons.CHEVRON_RIGHT, size=18),
+                        ft.Icon(
+                            icone,
+                            size=18
+                        ),
+                        ft.Text(
+                            texto,
+                            no_wrap=True
+                        ),
+                        ft.Container(
+                            expand=True
+                        ),
+                        ft.Icon(
+                            ft.Icons.CHEVRON_RIGHT,
+                            size=18
+                        ),
                     ],
                     spacing=8,
                     vertical_alignment=ft.CrossAxisAlignment.CENTER
                 ),
                 width=largura,
-                padding=ft.padding.symmetric(horizontal=2, vertical=2)
+                padding=ft.padding.symmetric(
+                    horizontal=2,
+                    vertical=2
+                )
             ),
             controls=controles
         )
 
+    # =========================================================
+    # HOME
+    # =========================================================
+
+    menu_home = ft.SubmenuButton(
+        content=texto_menu_principal("Home"),
+        controls=somente_permitidos([
+            item_menu(
+                "Início",
+                ft.Icons.FACT_CHECK_OUTLINED,
+                "Inicio",
+                largura=240
+            ),
+        ])
+    )
+
+    # =========================================================
+    # SIOR
+    # =========================================================
+
+    menu_sior = ft.SubmenuButton(
+        content=texto_menu_principal("SIOR"),
+        controls=somente_permitidos([
+
+            submenu_menu(
+                "Consulta",
+                ft.Icons.SEARCH,
+                somente_permitidos([
+                    item_menu(
+                        "Auto de Infração",
+                        ft.Icons.DESCRIPTION_OUTLINED,
+                        "SIOR_Consulta",
+                        largura=260
+                    ),
+
+                    item_menu(
+                        "Proprietário",
+                        ft.Icons.PERSON_SEARCH_OUTLINED,
+                        "SIOR_Proprietario",
+                        largura=260
+                    ),
+
+                    item_menu(
+                        "Placa",
+                        ft.Icons.DIRECTIONS_CAR_OUTLINED,
+                        "SIOR_Placa",
+                        largura=260
+                    ),
+
+                    item_menu(
+                        "Auto de Infração Cobrança",
+                        ft.Icons.REQUEST_QUOTE,
+                        "SIOR_Consulta_Cobranca",
+                        largura=260
+                    ),
+
+                    item_menu(
+                        "Devedor em Cobrança",
+                        ft.Icons.ACCOUNT_BALANCE_WALLET_OUTLINED,
+                        "SIOR_Consulta_Cobranca_Devedor",
+                        largura=260
+                    ),
+
+                    item_menu(
+                        "Acompanhamento Painel Supervisor",
+                        ft.Icons.DASHBOARD_OUTLINED,
+                        "SIOR_Consulta_Painel_Super",
+                        largura=260
+                    ),
+                ]),
+                largura=240
+            ),
+
+            item_menu(
+                "Download Relatórios",
+                ft.Icons.DOWNLOAD,
+                "SIOR_Download",
+                largura=240
+            ),
+
+            item_menu(
+                "Login Manual SIOR",
+                ft.Icons.LOGIN,
+                "Login Manual SIOR",
+                largura=240
+            ),
+        ])
+    )
+
+    # =========================================================
+    # SAPIENS
+    # =========================================================
+
+    menu_sapiens = ft.SubmenuButton(
+        content=texto_menu_principal("Sapiens"),
+        controls=somente_permitidos([
+            item_menu(
+                "Consulta Créditos",
+                ft.Icons.MONETIZATION_ON_OUTLINED,
+                "Sapiens_Consulta",
+                largura=240
+            ),
+
+            # Caso queira reativar futuramente:
+            # item_menu(
+            #     "Download P.A's",
+            #     ft.Icons.FOLDER_COPY_OUTLINED,
+            #     "Sapiens_Copia_Pa",
+            #     largura=240
+            # ),
+        ])
+    )
+
+    # =========================================================
+    # CADIN
+    # =========================================================
+
+    menu_cadin = ft.SubmenuButton(
+        content=texto_menu_principal("CADIN"),
+        controls=somente_permitidos([
+            item_menu(
+                "Consulta CADIN",
+                ft.Icons.FACT_CHECK_OUTLINED,
+                "CADIN_Consulta",
+                largura=240
+            ),
+        ])
+    )
+
+    # =========================================================
+    # AJUDA
+    # =========================================================
+
+    menu_ajuda = ft.SubmenuButton(
+        content=texto_menu_principal("Ajuda"),
+        controls=somente_permitidos([
+            item_menu(
+                "Sobre",
+                ft.Icons.INFO_OUTLINE,
+                "Sobre",
+                largura=240
+            ),
+
+            item_menu(
+                "Login Manual SIOR",
+                ft.Icons.LOGIN,
+                "Login Manual SIOR",
+                largura=240
+            ),
+        ])
+    )
+
+    # =========================================================
+    # MENU FINAL
+    # =========================================================
+
     menu = ft.MenuBar(
-        controls=[
-            ft.SubmenuButton(
-                content=texto_menu_principal("Home"),
-                controls=[
-                    item_menu(
-                        "Início",
-                        ft.Icons.FACT_CHECK_OUTLINED,
-                        "Inicio",
-                        largura=240
-                    ),
-                ]
-            ),
-
-            # =================================================
-            # SIOR
-            # =================================================
-            ft.SubmenuButton(
-                content=texto_menu_principal("SIOR"),
-                controls=[
-
-                    submenu_menu(
-                        "Consulta",
-                        ft.Icons.SEARCH,
-                        [
-                            item_menu(
-                                "Auto de Infração",
-                                ft.Icons.DESCRIPTION_OUTLINED,
-                                "SIOR_Consulta",
-                                largura=260
-                            ),
-
-                            item_menu(
-                                "Proprietário",
-                                ft.Icons.DESCRIPTION_OUTLINED,
-                                "SIOR_Proprietario",
-                                largura=260
-                            ),
-
-                            item_menu(
-                                "Placa",
-                                ft.Icons.DESCRIPTION_OUTLINED,
-                                "SIOR_Placa",
-                                largura=260
-                            ),
-
-                            item_menu(
-                                "Auto de Infração Cobrança",
-                                ft.Icons.REQUEST_QUOTE,
-                                "SIOR_Consulta_Cobranca",
-                                largura=260
-                            ),
-
-                            item_menu(
-                                "Devedor em Cobrança",
-                                ft.Icons.REQUEST_QUOTE,
-                                "SIOR_Consulta_Cobranca_Devedor",
-                                largura=260
-                            ),
-
-                            item_menu(
-                                "Acompanhamento Painel Supervisor",
-                                ft.Icons.DASHBOARD_OUTLINED,
-                                "SIOR_Consulta_Painel_Super",
-                                largura=260
-                            ),
-                        ],
-                        largura=240
-                    ),
-
-                    item_menu(
-                        "Download Relatórios",
-                        ft.Icons.DOWNLOAD,
-                        "SIOR_Download",
-                        largura=240
-                    ),
-
-                    item_menu(
-                        "Login Manual SIOR",
-                        ft.Icons.LOGIN,
-                        "Login Manual SIOR",
-                        largura=240
-                    ),
-                ]
-            ),
-
-            # =================================================
-            # SAPIENS
-            # =================================================
-            ft.SubmenuButton(
-                content=texto_menu_principal("Sapiens"),
-                controls=[
-                    item_menu(
-                        "Consulta Créditos",
-                        ft.Icons.MONETIZATION_ON_OUTLINED,
-                        "Sapiens_Consulta",
-                        largura=240
-                    ),
-
-                    # Caso queira reativar futuramente:
-                    # item_menu(
-                    #     "Download P.A's",
-                    #     ft.Icons.FOLDER_COPY_OUTLINED,
-                    #     "Sapiens_Copia_Pa",
-                    #     largura=240
-                    # ),
-                ]
-            ),
-
-            # =================================================
-            # CADIN
-            # =================================================
-            ft.SubmenuButton(
-                content=texto_menu_principal("CADIN"),
-                controls=[
-                    item_menu(
-                        "Consulta CADIN",
-                        ft.Icons.FACT_CHECK_OUTLINED,
-                        "CADIN_Consulta",
-                        largura=240
-                    ),
-                ]
-            ),
-
-            # =================================================
-            # AJUDA
-            # =================================================
-            ft.SubmenuButton(
-                content=texto_menu_principal("Ajuda"),
-                controls=[
-                    item_menu(
-                        "Sobre",
-                        ft.Icons.INFO_OUTLINE,
-                        "Sobre",
-                        largura=240
-                    ),
-
-                    item_menu(
-                        "Login Manual SIOR",
-                        ft.Icons.LOGIN,
-                        "Login Manual SIOR",
-                        largura=240
-                    ),
-                ]
-            ),
-        ]
+        controls=somente_permitidos([
+            menu_home,
+            menu_sior,
+            menu_sapiens,
+            menu_cadin,
+            menu_ajuda,
+        ])
     )
 
     # =========================================================

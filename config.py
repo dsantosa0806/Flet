@@ -1,7 +1,53 @@
 import os
 
-current_version = '1.4.1'
-URL_VERSAO = "https://dsantosa0806.github.io/Flet/version.json"
+import os
+
+# ==========================================================
+# PERFIL / CANAL DA APLICAÇÃO
+# ==========================================================
+
+APP_PROFILE = os.getenv("SIOR_APP_PROFILE", "USUARIO").upper()
+
+PERFIL_USUARIO = "USUARIO"
+PERFIL_ADMIN = "ADMIN"
+
+IS_ADMIN = APP_PROFILE == PERFIL_ADMIN
+IS_USUARIO = APP_PROFILE == PERFIL_USUARIO
+
+
+# ==========================================================
+# VERSIONAMENTO
+# ==========================================================
+
+BASE_VERSION = "1.4.1"
+
+VERSAO_USUARIO = f"{BASE_VERSION}"
+VERSAO_ADMIN = f"{BASE_VERSION}-admin"
+
+current_version = VERSAO_ADMIN if IS_ADMIN else VERSAO_USUARIO
+
+
+# ==========================================================
+# URLS DE ATUALIZAÇÃO POR PERFIL
+# ==========================================================
+
+URL_VERSAO_USUARIO = "https://dsantosa0806.github.io/Flet/version_usuario.json"
+URL_VERSAO_ADMIN = "https://dsantosa0806.github.io/Flet/version_admin.json"
+
+URL_VERSAO = URL_VERSAO_ADMIN if IS_ADMIN else URL_VERSAO_USUARIO
+
+
+# ==========================================================
+# TÍTULO DA APLICAÇÃO
+# ==========================================================
+
+APP_TITLE_BASE = "RPA Search Data"
+
+APP_TITLE = (
+    f"{APP_TITLE_BASE} - Admin"
+    if IS_ADMIN
+    else f"{APP_TITLE_BASE} - Usuário"
+)
 
 diretorio = r'C:\\'
 pasta_arquivos = r'C:\Extracao-Relatorio-Financeiro-Processo-Arquivos'

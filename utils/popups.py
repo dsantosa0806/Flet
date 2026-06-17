@@ -2,44 +2,122 @@ import threading
 import flet as ft
 
 
-def mostrar_alerta(ft, page, titulo: str, mensagem: str, tipo="info", duracao=3):
+def mostrar_alerta(ft, page, titulo, mensagem, tipo="info", duracao=5000):
     """
-    Exibe um alerta modal (popup) por até X segundos.
+    Exibe alerta visual compatível com execução normal e PyInstaller.
 
-    :param page: instância da página Flet
-    :param titulo: título do alerta
-    :param mensagem: texto do corpo
-    :param tipo: tipo do alerta ("info", "success", "error", "warning")
-    :param duracao: tempo em segundos para fechamento automático
+    Tenta primeiro SnackBar.
+    Se não funcionar, usa AlertDialog como fallback.
     """
+
     cores = {
-        "info": ("ℹ️", "blue"),
-        "success": ("✅", "green"),
-        "error": ("❌", "red"),
-        "warning": ("⚠️", "orange"),
+        "success": ft.Colors.GREEN,
+        "error": ft.Colors.RED,
+        "warning": ft.Colors.ORANGE,
+        "info": ft.Colors.BLUE,
     }
 
-    icone, cor = cores.get(tipo, ("ℹ️", "blue"))
+    icones = {
+        "success": "✅",
+        "error": "❌",
+        "warning": "⚠️",
+        "info": "ℹ️",
+    }
 
-    # ✅ Garante que o diálogo foi instanciado antes de configurar
-    if not hasattr(page, "dialog") or page.dialog is None:
-        page.dialog = ft.AlertDialog()
+    cor = cores.get(tipo, ft.Colors.BLUE)
+    icone = icones.get(tipo, "ℹ️")
 
-    page.dialog.title = ft.Text(f"{icone} {titulo}", color=cor, weight="bold")
-    page.dialog.content = ft.Text(mensagem)
-    page.dialog.actions = [
-        ft.TextButton("OK", on_click=lambda e: fechar_dialogo(page))
-    ]
-    page.dialog.actions_alignment = "end"
-    page.dialog.open = True
-    page.update()
+    texto = f"{icone} {titulo}\n{mensagem}"
 
-    def fechar_auto():
-        if page.dialog.open:
-            page.dialog.open = False
-            page.update()
+    # =====================================================
+    # 1. TENTATIVA PRINCIPAL: page.open(SnackBar)
+    # =====================================================
+    try:
+        snack = ft.SnackBar(
+            content=ft.Text(
+                texto,
+                color=ft.Colors.WHITE,
+                selectable=True
+            ),
+            bgcolor=cor,
+            duration=duracao,
+            show_close_icon=True
+        )
 
-    threading.Timer(duracao, fechar_auto).start()
+        page.open(snack)
+        page.update()
+        return True
+
+    except Exception as ex:
+        print(f"Falha ao abrir SnackBar via page.open: {ex}")
+
+    # =====================================================
+    # 2. FALLBACK: page.snack_bar tradicional
+    # =====================================================
+    try:
+        page.snack_bar = ft.SnackBar(
+            content=ft.Text(
+                texto,
+                color=ft.Colors.WHITE,
+                selectable=True
+            ),
+            bgcolor=cor,
+            duration=duracao,
+            show_close_icon=True
+        )
+
+        page.snack_bar.open = True
+        page.update()
+        return True
+
+    except Exception as ex:
+        print(f"Falha ao abrir SnackBar via page.snack_bar: {ex}")
+
+    # =====================================================
+    # 3. FALLBACK FINAL: AlertDialog
+    # =====================================================
+    try:
+        dialog = None
+
+        def fechar(e=None):
+            try:
+                if dialog:
+                    dialog.open = False
+                    page.update()
+            except Exception:
+                pass
+
+        dialog = ft.AlertDialog(
+            modal=True,
+            title=ft.Text(f"{icone} {titulo}"),
+            content=ft.Container(
+                width=520,
+                content=ft.Text(
+                    str(mensagem),
+                    selectable=True
+                )
+            ),
+            actions=[
+                ft.TextButton(
+                    "Fechar",
+                    on_click=fechar
+                )
+            ],
+            actions_alignment=ft.MainAxisAlignment.END
+        )
+
+        try:
+            page.open(dialog)
+        except Exception:
+            page.dialog = dialog
+            dialog.open = True
+
+        page.update()
+        return True
+
+    except Exception as ex:
+        print(f"Falha ao abrir AlertDialog fallback: {ex}")
+        return False
 
 
 def fechar_dialogo(page):
