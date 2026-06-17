@@ -7,6 +7,7 @@ from collections import Counter
 from datetime import datetime
 import os
 import config
+from utils.open_dir_downloads import abrir_pasta_exportacao
 from utils.popups import mostrar_alerta
 
 CACHE_PATH_SUPERVISOR = config.CACHE_PATH_SUPERVISOR
@@ -295,11 +296,14 @@ def aba_consulta_sior_painel_supervisor(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE
                             produtividade.to_excel(writer, sheet_name="Prod. Fase - Cad. Sapiens")
 
             page.dialog = alerta_dialogo
-            mostrar_alerta(ft,
-                           page,
-                           "Download concluído",
-                           f"Disponível em C:\\Downloads.",
-                           tipo="success")
+            mostrar_alerta(
+                ft,
+                page,
+                "Exportado com sucesso",
+                "✅ Disponível na pasta Downloads. Abrindo arquivo...",
+                tipo="success"
+            )
+            abrir_pasta_exportacao(path)
             status.value = "📤 Exportado com sucesso! Verifique a pasta Downloads."
         except Exception as ex:
             status.value = f"❌ Falha ao exportar: {ex}"

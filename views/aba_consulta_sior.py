@@ -5,6 +5,7 @@ from datetime import datetime
 import pandas as pd
 from navegador.sior_selenium_execution import iniciar_sessao_sior
 from requests_data.requisicoes_sior import get_dados_auto
+from utils.open_dir_downloads import abrir_pasta_exportacao
 from utils.popups import mostrar_alerta
 
 
@@ -176,9 +177,14 @@ def aba_consulta(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page, bloquear, desbl
             df.to_excel(path, index=False)
             msg_export.value = "📤 Exportação concluída com sucesso!"
             page.dialog = alerta_dialogo
-            mostrar_alerta(ft, page, "Exportado com sucesso",
-                           "✅ Disponível em C:\\Downloads!",
-                           tipo="success")
+            mostrar_alerta(
+                ft,
+                page,
+                "Exportado com sucesso",
+                "✅ Disponível na pasta Downloads. Abrindo local do arquivo...",
+                tipo="success"
+            )
+            abrir_pasta_exportacao(path)
 
             msg_export.color = "green"
             msg_export.visible = True

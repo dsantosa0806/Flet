@@ -7,6 +7,7 @@ import pandas as pd
 from datetime import datetime
 from requests_data.requisicoes_sapiens import get_creditos_sapiens
 from navegador.login_super_sapiens import obter_token
+from utils.open_dir_downloads import abrir_pasta_exportacao
 from utils.popups import mostrar_alerta
 
 
@@ -108,6 +109,7 @@ def exportar_para_excel(ft,
         page.dialog = alerta_dialogo
         mostrar_alerta(ft, page, "Exportado com sucesso", f"✅ Arquivo salvo em {caminho}", tipo="success")
         print(f"📁 Exportação concluída: {len(df_out)} registros totais — salvo em {caminho}")
+        abrir_pasta_exportacao(caminho)
 
     except Exception as ex:
         msg_output.value = f"{mensagem_falha}: {ex}"

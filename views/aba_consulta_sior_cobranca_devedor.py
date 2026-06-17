@@ -3,26 +3,20 @@
 # ==========================================================
 import os
 import re
+import time
 import threading
 from datetime import datetime
-
 import pandas as pd
-
 from navegador.sior_selenium_execution import iniciar_sessao_sior
-
-from requests_data.requisicoes_sior import (
-    get_dados_auto_cobranca,
-    get_valor_corrigido
-)
+from requests_data.requisicoes_sior import get_dados_devedor_cobranca
 from utils.open_dir_downloads import abrir_pasta_exportacao
-
 from utils.popups import mostrar_alerta
 
 
 # ==========================================================
-# ABA - CONSULTA AIT COBRANÇA
+# ABA - CONSULTA DEVEDOR COBRANÇA
 # ==========================================================
-def aba_consulta_auto_cobranca(
+def aba_consulta_auto_cobranca_devedor(
     ft,
     DEFAULT_FONT_SIZE,
     HEADING_FONT_SIZE,
@@ -32,7 +26,6 @@ def aba_consulta_auto_cobranca(
 ):
 
     tabela_resultados = []
-    tabela_financeiro = []
 
     pagina_atual = 1
     itens_por_pagina = 3
@@ -48,10 +41,10 @@ def aba_consulta_auto_cobranca(
     )
 
     # ==========================================================
-    # INPUT AIT
+    # INPUT DEVEDOR
     # ==========================================================
-    input_consulta = ft.TextField(
-        label="Número do AIT (um por linha)",
+    input_devedor = ft.TextField(
+        label="CPF/CNPJ (um por linha)",
         multiline=True,
         min_lines=5,
         max_lines=10,
@@ -65,44 +58,16 @@ def aba_consulta_auto_cobranca(
         )
     )
 
-    # === FUNÇÕES AUXILIARES ===
-    def validar_codigos(codigos):
-        erros = []
-        if not codigos:
-            erros.append("⚠ É necessário inserir ao menos um código AIT.")
-        if len(set(codigos)) < len(codigos):
-            erros.append("⚠ Existem Número de AITs duplicados.")
-        if len(codigos) > 2000:
-            erros.append("⚠ Limite máximo de 2000 AITs por vez.")
-        if any(" " in c for c in codigos):
-            erros.append("⚠ Os Número de AIT não podem conter espaços.")
-        if any(not re.match(r"^[A-Za-z][0-9]{9}$", c) for c in codigos):
-            erros.append("⚠ Todos os Número de AITs devem ter o formato: Letra + 9 dígitos.")
-        return erros
-
-    # ==========================================================
-    # TOGGLE FINANCEIRO
-    # ==========================================================
-    toggle_financeiro = ft.Switch(
-        label="Buscar Valor Débito Atualizado?",
-        value=False,
-        visible=True
-    )
-
     # ==========================================================
     # EXPANDER
     # ==========================================================
     expander_input = ft.ExpansionTile(
         title=ft.Text(
-            "📥 Inserir Dados de Consulta"
+            "📥 Inserir CPF/CNPJ para Consulta"
         ),
         initially_expanded=True,
         controls=[
-            input_consulta,
-
-            ft.Container(height=10),
-
-            toggle_financeiro
+            input_devedor
         ],
     )
 
@@ -486,7 +451,7 @@ def aba_consulta_auto_cobranca(
             )
 
             nome_arquivo = (
-                f"Consulta_AIT_Cobranca_{ts}.xlsx"
+                f"Consulta_Devedor_Cobranca_{ts}.xlsx"
             )
 
             path = os.path.join(
@@ -500,108 +465,11 @@ def aba_consulta_auto_cobranca(
                 engine="openpyxl"
             ) as writer:
 
-                # ======================================
-                # ABA PRINCIPAL
-                # ======================================
                 df.to_excel(
                     writer,
                     sheet_name="Consulta Cobranca",
                     index=False
                 )
-
-                # ======================================
-                # FINANCEIRO
-                # ======================================
-                if toggle_financeiro.value:
-
-                    df_financeiro = pd.DataFrame(
-                        tabela_financeiro
-                    )
-
-                    def moeda_para_float(valor):
-
-                        try:
-
-                            valor = str(valor)
-
-                            valor = re.sub(
-                                r"[^\d,.-]",
-                                "",
-                                valor
-                            )
-
-                            valor = (
-                                valor
-                                .replace(".", "")
-                                .replace(",", ".")
-                            )
-
-                            return float(valor)
-
-                        except Exception:
-                            return 0.0
-
-                    if (
-                        "ValorOriginal"
-                        in df_financeiro.columns
-                    ):
-
-                        df_financeiro[
-                            "ValorOriginal"
-                        ] = (
-                            df_financeiro[
-                                "ValorOriginal"
-                            ].apply(
-                                moeda_para_float
-                            )
-                        )
-
-                    if (
-                        "ValorCorrigido"
-                        in df_financeiro.columns
-                    ):
-
-                        df_financeiro[
-                            "ValorCorrigido"
-                        ] = (
-                            df_financeiro[
-                                "ValorCorrigido"
-                            ].apply(
-                                moeda_para_float
-                            )
-                        )
-
-                    df_financeiro.to_excel(
-                        writer,
-                        sheet_name="Financeiro",
-                        index=False
-                    )
-
-                    worksheet = writer.sheets[
-                        "Financeiro"
-                    ]
-
-                    moeda_format = (
-                        'R$ #,##0.00'
-                    )
-
-                    for cell in worksheet["C"][1:]:
-
-                        cell.number_format = (
-                            moeda_format
-                        )
-
-                    for cell in worksheet["D"][1:]:
-
-                        cell.number_format = (
-                            moeda_format
-                        )
-
-                    for cell in worksheet["E"][1:]:
-
-                        cell.number_format = (
-                            '0.0000'
-                        )
 
             page.dialog = alerta_dialogo
 
@@ -614,7 +482,7 @@ def aba_consulta_auto_cobranca(
                 ft,
                 page,
                 "Exportado com sucesso",
-                "✅ Disponível na pasta Downloads. Abrindo arquivo...",
+                "✅ Disponível na pasta Downloads. Abrindo local do arquivo...",
                 tipo="success"
             )
             abrir_pasta_exportacao(path)
@@ -638,36 +506,84 @@ def aba_consulta_auto_cobranca(
             page.update()
 
     # ==========================================================
+    # VALIDA CPF/CNPJ
+    # ==========================================================
+    def validar_devedores(lista_devedores):
+
+        erros = []
+
+        # ======================================
+        # LIMITE
+        # ======================================
+        if len(lista_devedores) > 100:
+            erros.append(
+                "Limite máximo de 100 CPF/CNPJ por consulta."
+            )
+
+        if len(set(lista_devedores)) < len(lista_devedores):
+            erros.append("⚠ Existem Números de CPF/ CNPJ duplicados.")
+
+        # ======================================
+        # VALIDAÇÕES
+        # ======================================
+        for idx, item in enumerate(lista_devedores, 1):
+
+            documento = re.sub(
+                r"\D",
+                "",
+                item
+            )
+
+            # CPF
+            if len(documento) == 11:
+                continue
+
+            # CNPJ
+            elif len(documento) == 14:
+                continue
+
+            else:
+
+                erros.append(
+                    f"Linha {idx}: "
+                    f"CPF/CNPJ inválido ({item})"
+                )
+
+        return erros
+
+    # ==========================================================
     # CONSULTA
     # ==========================================================
     def run_consulta(e):
 
         nonlocal tabela_resultados
-        nonlocal tabela_financeiro
         nonlocal pagina_atual
 
         codigos = [
             c.strip()
-            for c in input_consulta.value.splitlines()
+            for c in input_devedor.value.splitlines()
             if c.strip()
         ]
 
-        codigos = [c.strip() for c in input_consulta.value.splitlines() if c.strip()]
-        erros = validar_codigos(codigos)
+        # ======================================
+        # VALIDAÇÃO CPF/CNPJ
+        # ======================================
+        erros_validacao = validar_devedores(
+            codigos
+        )
 
-        if erros:
+        if erros_validacao:
             mostrar_alerta(
                 ft,
                 page,
                 "Validação de CPF/CNPJ",
-                "\n".join(erros),
+                "\n".join(erros_validacao),
                 tipo="error"
             )
             page.update()
             return
 
         tabela_resultados.clear()
-        tabela_financeiro.clear()
 
         pagina_atual = 1
 
@@ -742,7 +658,7 @@ def aba_consulta_auto_cobranca(
                     page.update()
 
                     resposta = (
-                        get_dados_auto_cobranca(
+                        get_dados_devedor_cobranca(
                             codigo,
                             session
                         )
@@ -775,64 +691,6 @@ def aba_consulta_auto_cobranca(
                         tabela_resultados.append(
                             linha
                         )
-
-                    # ==================================
-                    # FINANCEIRO - APENAS AIT
-                    # ==================================
-                    if toggle_financeiro.value:
-
-                        try:
-
-                            financeiro = (
-                                get_valor_corrigido(
-                                    codigo,
-                                    session
-                                )
-                            )
-
-                            if financeiro:
-
-                                tabela_financeiro.append({
-
-                                    "NumeroAuto":
-                                        financeiro.get(
-                                            "NumeroAuto",
-                                            ""
-                                        ),
-
-                                    "DevedorNumero":
-                                        financeiro.get(
-                                            "DevedorNumero",
-                                            ""
-                                        ),
-
-                                    "ValorOriginal":
-                                        financeiro.get(
-                                            "ValorOriginal",
-                                            ""
-                                        ),
-
-                                    "ValorCorrigido":
-                                        financeiro.get(
-                                            "ValorCorrigido",
-                                            ""
-                                        ),
-
-                                    "FatorMultiplicador":
-                                        financeiro.get(
-                                            "FatorMultiplicador",
-                                            ""
-                                        )
-                                })
-
-                        except Exception as ex:
-
-                            log.value += (
-                                f"❌ Erro financeiro: "
-                                f"{ex}\n"
-                            )
-
-                            page.update()
 
                 filtro_tipo.options = [
                     ft.dropdown.Option(
@@ -933,8 +791,8 @@ def aba_consulta_auto_cobranca(
         ft.Row([
 
             ft.Text(
-                "SIOR > Consultar Auto de "
-                "Infração Cobrança",
+                "SIOR > Consulta > Devedor em "
+                "situação de Cobrança",
                 size=10,
                 weight="bold"
             )

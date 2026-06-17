@@ -249,6 +249,7 @@ def _garantir_pastas():
     os.makedirs(SIOR_PROFILE_DIR, exist_ok=True)
     os.makedirs(SIOR_COOKIES_DIR, exist_ok=True)
 
+
 def _normalizar_path(path: str) -> str:
     return os.path.normcase(os.path.normpath(path or ""))
 
@@ -979,6 +980,253 @@ def safe_get(
 
 
 # =========================================================
+# LOGIN VIA COOKIES.JSON MANUAL
+# =========================================================
+
+def _ler_cookies_json_sior():
+    """
+    Lê o cookies.json do SIOR.
+    Retorna lista de cookies ou [].
+    """
+    cookies_file = _cookies_path()
+
+    if not os.path.exists(cookies_file):
+        return []
+
+    try:
+        with open(cookies_file, "r", encoding="utf-8") as file:
+            cookies = json.load(file)
+
+        if isinstance(cookies, list):
+            return cookies
+
+    except Exception:
+        pass
+
+    return []
+
+
+def _obter_cookie_por_nome(cookies, nome_cookie):
+    """
+    Busca cookie pelo nome dentro da lista do cookies.json.
+    """
+    for cookie in cookies:
+        try:
+            if cookie.get("name") == nome_cookie:
+                return cookie
+        except Exception:
+            pass
+
+    return None
+
+
+def cookies_json_sior_valido(log=None):
+    """
+    Verifica se o cookies.json possui os cookies mínimos para login manual:
+
+    - ASP.NET_SessionId com value
+    - .SIOR_AUTH_prod_v2 com value
+    - .SIOR_AUTH_prod_v2 com expiry futuro
+    """
+
+    cookies = _ler_cookies_json_sior()
+
+    if not cookies:
+        _log(log, "ℹ️ cookies.json do SIOR não encontrado ou vazio.")
+        return False
+
+    cookie_session = _obter_cookie_por_nome(cookies, "ASP.NET_SessionId")
+    cookie_auth = _obter_cookie_por_nome(cookies, ".SIOR_AUTH_prod_v2")
+
+    if not cookie_session or not cookie_session.get("value"):
+        _log(log, "ℹ️ Cookie ASP.NET_SessionId não encontrado no cookies.json.")
+        return False
+
+    if not cookie_auth or not cookie_auth.get("value"):
+        _log(log, "ℹ️ Cookie .SIOR_AUTH_prod_v2 não encontrado no cookies.json.")
+        return False
+
+    expiry = cookie_auth.get("expiry")
+
+    if not expiry:
+        _log(log, "ℹ️ Cookie .SIOR_AUTH_prod_v2 não possui expiry.")
+        return False
+
+    try:
+        expiry = int(expiry)
+    except Exception:
+        _log(log, "ℹ️ Expiry do cookie .SIOR_AUTH_prod_v2 é inválido.")
+        return False
+
+    agora = int(time.time())
+
+    if expiry <= agora:
+        _log(log, "❌ Cookie .SIOR_AUTH_prod_v2 está expirado.")
+        return False
+
+    return True
+
+
+def pagina_atual_indica_login(navegador):
+    """
+    Verifica se o navegador está em tela de login.
+    """
+    try:
+        url_atual = (navegador.current_url or "").lower()
+
+        if "account/login" in url_atual:
+            return True
+
+        if "acesso.gov.br" in url_atual:
+            return True
+
+        texto_body = navegador.execute_script(
+            "return document.body ? document.body.innerText : '';"
+        )
+
+        texto_body = (texto_body or "").lower()
+
+        marcadores_login = [
+            "entrar com gov.br",
+            "gov.br",
+            "qr code",
+            "login",
+        ]
+
+        for marcador in marcadores_login:
+            if marcador in texto_body:
+                return True
+
+    except Exception:
+        pass
+
+    return False
+
+
+def sessao_sior_confirmada(navegador):
+    """
+    Confirma se o Selenium aparentemente está autenticado no SIOR.
+    """
+
+    try:
+        if elemento_existe(navegador, By.XPATH, LOGADO_XPATH):
+            return True
+    except Exception:
+        pass
+
+    try:
+        url_atual = (navegador.current_url or "").lower()
+
+        if "account/login" in url_atual:
+            return False
+
+        if "acesso.gov.br" in url_atual:
+            return False
+
+        if "/sior/infracao/" in url_atual:
+            return True
+
+        texto_body = navegador.execute_script(
+            "return document.body ? document.body.innerText : '';"
+        )
+
+        texto_body = (texto_body or "").lower()
+
+        if "entrar com gov.br" in texto_body:
+            return False
+
+        if "consulta auto de infração" in texto_body:
+            return True
+
+        if "auto de infração" in texto_body and "sior" in texto_body:
+            return True
+
+    except Exception:
+        pass
+
+    return False
+
+
+def tentar_login_via_cookies_json(navegador, s=None, log=None):
+    """
+    Tenta autenticar o Selenium usando os cookies salvos manualmente no cookies.json.
+
+    Esse fluxo é usado antes de abrir o login manual visível.
+    """
+
+    if not navegador:
+        return False
+
+    if not cookies_json_sior_valido(log=log):
+        return False
+
+    try:
+        _log(log, "🍪 Tentando autenticar SIOR via cookies.json manual...")
+
+        # Garante que estamos em domínio compatível antes de adicionar cookies.
+        try:
+            url_atual = navegador.current_url or ""
+
+            if "servicos.dnit.gov.br" not in url_atual:
+                safe_get(
+                    navegador=navegador,
+                    url=SIOR_BASE_URL,
+                    elemento_validacao=(By.TAG_NAME, "body"),
+                    tentativas=1,
+                    timeout_get=10,
+                    timeout_elemento=5,
+                    tempo_estabilizacao=0.5
+                )
+
+        except Exception:
+            pass
+
+        # Agora sim injeta os cookies no Selenium e também no requests.Session.
+        cookies = load_cookies(
+            navegador=navegador,
+            s=s,
+            injetar_no_navegador=True
+        )
+
+        if not cookies:
+            _log(log, "❌ Nenhum cookie foi carregado do cookies.json.")
+            return False
+
+        # Acessa diretamente a tela interna do SIOR.
+        sucesso = safe_get(
+            navegador=navegador,
+            url=SIOR_TELA_INICIAL_AUTO_URL,
+            elemento_validacao=(By.TAG_NAME, "body"),
+            tentativas=2,
+            timeout_get=15,
+            timeout_elemento=8,
+            tempo_estabilizacao=0.8
+        )
+
+        if not sucesso:
+            _log(log, "❌ Não foi possível acessar tela interna usando cookies.json.")
+            return False
+
+        if pagina_atual_indica_login(navegador):
+            _log(log, "❌ Cookies carregados, mas o SIOR redirecionou para login.")
+            return False
+
+        if not sessao_sior_confirmada(navegador):
+            _log(log, "❌ Cookies carregados, mas a sessão SIOR não foi confirmada.")
+            return False
+
+        if s:
+            sincronizar_cookies_navegador_para_session(navegador, s)
+
+        _log(log, "✅ Sessão SIOR recuperada via cookies.json manual.")
+        return True
+
+    except Exception as ex:
+        _log(log, f"❌ Falha ao autenticar via cookies.json manual: {ex}")
+        return False
+
+
+# =========================================================
 # TELA INICIAL AUTO COM RETRY
 # =========================================================
 
@@ -995,6 +1243,10 @@ def acessa_tela_incial_auto(navegador):
 
     if not sucesso:
         print("❌ Não foi possível carregar tela inicial.")
+        return 1
+
+    if pagina_atual_indica_login(navegador):
+        print("❌ SIOR redirecionou para login. Sessão não autenticada.")
         return 1
 
     return 0
@@ -1074,11 +1326,12 @@ def iniciar_sessao_sior(log=None):
         if not sucesso_login_page:
             raise Exception("Falha ao abrir página inicial do SIOR")
 
-        # Prepara requests sem injetar cookies no Selenium.
+        # Prepara requests sem travar o navegador.
+        # Aqui o cookies.json entra no requests.Session.
         s = preparar_session_requests(navegador)
 
         # =================================================
-        # 2. VERIFICA SE JÁ ESTÁ LOGADO
+        # 2. VERIFICA SE JÁ ESTÁ LOGADO PELO PERFIL
         # =================================================
         if elemento_existe(navegador, By.XPATH, LOGADO_XPATH):
             log_print("✅ Sessão recuperada pelo perfil persistente.")
@@ -1086,101 +1339,115 @@ def iniciar_sessao_sior(log=None):
 
         else:
             # =================================================
-            # 3. LOGIN MANUAL VISÍVEL COM O MESMO PERFIL
+            # 2.1. NOVA CAMADA: TENTA LOGIN VIA COOKIES.JSON
             # =================================================
-            log_print("🔐 Login manual necessário. Abrindo navegador visível...")
-            log_print("REALIZE O LOGIN CONFORME VÍDEO.")
-            log_print("A conexão via WIFI poderá impactar no desempenho da automação.")
-            log_print("Se possível, conecte via cabo de rede.")
-            log_print("https://drive.google.com/file/d/1RoblMwNnSIzX9-g-NKIQP3WDsytV8d6c/view")
+            log_print("ℹ️ Sessão não confirmada pelo perfil persistente.")
+            log_print("🍪 Verificando possibilidade de login via cookies.json manual...")
 
-            try:
-                encerrar_navegador_sior(navegador, log=log)
-                navegador = None
-            except Exception:
-                pass
-
-            navegador = None
-
-            # Pequena pausa para liberar o perfil do Chrome.
-            time.sleep(2)
-
-            navegador = criar_navegador(headless=False, log=log)
-
-            log_print(
-                "🧭 Navegador visível iniciado com perfil persistente "
-                f"do SIOR: {SIOR_PROFILE_DIR}"
-            )
-
-            sucesso_login_page = safe_get(
+            login_cookies_ok = tentar_login_via_cookies_json(
                 navegador=navegador,
-                url=SIOR_LOGIN_URL,
-                elemento_validacao=(By.TAG_NAME, "body"),
-                tentativas=3,
-                timeout_get=25,
-                timeout_elemento=15,
-                tempo_estabilizacao=1
+                s=s,
+                log=log
             )
 
-            if not sucesso_login_page:
-                raise Exception("Falha ao abrir SIOR em modo visível")
+            if login_cookies_ok:
+                log_print("✅ Login manual via cookies.json confirmado.")
+                store_cookies(navegador)
 
-            # IMPORTANTE:
-            # Não chamar acessa_sior(navegador) aqui.
-            # A página de login já foi aberta pelo safe_get.
-            resultado_login = login(navegador)
-
-            if resultado_login == 1:
-                log_print("⚠️ O login manual não foi confirmado automaticamente.")
-                log_print("⚠️ Verifique se o QR Code foi autenticado corretamente.")
-
-            log_print("⏳ Validando sessão após login manual...")
-
-            time.sleep(2)
-
-            # Salva cookies do navegador visível.
-            store_cookies(navegador)
-
-            try:
-                encerrar_navegador_sior(navegador, log=log)
-                navegador = None
-            except Exception:
-                pass
-
-            navegador = None
-
-            # Pausa importante para evitar perfil travado.
-            time.sleep(2)
-
-            log_print("🔁 Reiniciando navegador headless com o mesmo perfil persistente...")
-
-            # =================================================
-            # 4. REINICIA HEADLESS, MAS NÃO INJETA COOKIES NO SELENIUM
-            # =================================================
-            navegador = criar_navegador(headless=True, log=log)
-
-            sucesso_login_page = safe_get(
-                navegador=navegador,
-                url=SIOR_LOGIN_URL,
-                elemento_validacao=(By.TAG_NAME, "body"),
-                tentativas=3,
-                timeout_get=15,
-                timeout_elemento=8,
-                tempo_estabilizacao=0.7
-            )
-
-            if not sucesso_login_page:
-                raise Exception("Falha ao reiniciar SIOR em modo headless")
-
-            # Prepara nova sessão requests.
-            # Aqui o cookies.json entra apenas no requests.Session.
-            s = preparar_session_requests(navegador)
-
-            if elemento_existe(navegador, By.XPATH, LOGADO_XPATH):
-                log_print("✅ Sessão recuperada no headless após login manual.")
             else:
-                log_print("⚠️ Área logada não confirmada visualmente no headless.")
-                log_print("⚠️ Tentando acessar diretamente a tela inicial do SIOR...")
+                # =================================================
+                # 3. LOGIN MANUAL VISÍVEL COM O MESMO PERFIL
+                # =================================================
+                log_print("🔐 Login manual necessário. Abrindo navegador visível...")
+                log_print("REALIZE O LOGIN CONFORME VÍDEO.")
+                log_print("A conexão via WIFI poderá impactar no desempenho da automação.")
+                log_print("Se possível, conecte via cabo de rede.")
+                log_print("https://drive.google.com/file/d/1RoblMwNnSIzX9-g-NKIQP3WDsytV8d6c/view")
+
+                try:
+                    encerrar_navegador_sior(navegador, log=log)
+                    navegador = None
+                except Exception:
+                    pass
+
+                navegador = None
+
+                # Pequena pausa para liberar o perfil do Chrome.
+                time.sleep(2)
+
+                navegador = criar_navegador(headless=False, log=log)
+
+                log_print(
+                    "🧭 Navegador visível iniciado com perfil persistente "
+                    f"do SIOR: {SIOR_PROFILE_DIR}"
+                )
+
+                sucesso_login_page = safe_get(
+                    navegador=navegador,
+                    url=SIOR_LOGIN_URL,
+                    elemento_validacao=(By.TAG_NAME, "body"),
+                    tentativas=3,
+                    timeout_get=25,
+                    timeout_elemento=15,
+                    tempo_estabilizacao=1
+                )
+
+                if not sucesso_login_page:
+                    raise Exception("Falha ao abrir SIOR em modo visível")
+
+                # Mantém fluxo atual de login pelo Gov.br.
+                resultado_login = login(navegador)
+
+                if resultado_login == 1:
+                    log_print("⚠️ O login manual não foi confirmado automaticamente.")
+                    log_print("⚠️ Verifique se o foi autenticado corretamente.")
+
+                log_print("⏳ Validando sessão após login manual...")
+
+                time.sleep(2)
+
+                # Salva cookies do navegador visível.
+                store_cookies(navegador)
+
+                try:
+                    encerrar_navegador_sior(navegador, log=log)
+                    navegador = None
+                except Exception:
+                    pass
+
+                navegador = None
+
+                # Pausa importante para evitar perfil travado.
+                time.sleep(2)
+
+                log_print("🔁 Reiniciando navegador headless com o mesmo perfil persistente...")
+
+                # =================================================
+                # 4. REINICIA HEADLESS
+                # =================================================
+                navegador = criar_navegador(headless=True, log=log)
+
+                sucesso_login_page = safe_get(
+                    navegador=navegador,
+                    url=SIOR_LOGIN_URL,
+                    elemento_validacao=(By.TAG_NAME, "body"),
+                    tentativas=3,
+                    timeout_get=15,
+                    timeout_elemento=8,
+                    tempo_estabilizacao=0.7
+                )
+
+                if not sucesso_login_page:
+                    raise Exception("Falha ao reiniciar SIOR em modo headless")
+
+                # Prepara nova sessão requests.
+                s = preparar_session_requests(navegador)
+
+                if elemento_existe(navegador, By.XPATH, LOGADO_XPATH):
+                    log_print("✅ Sessão recuperada no headless após login manual.")
+                else:
+                    log_print("⚠️ Área logada não confirmada visualmente no headless.")
+                    log_print("⚠️ Tentando acessar diretamente a tela inicial do SIOR...")
 
         # =================================================
         # 5. ACESSA TELA INICIAL
@@ -1202,6 +1469,14 @@ def iniciar_sessao_sior(log=None):
 
     except Exception as e:
         log_print(f"❌ Erro ao iniciar sessão SIOR: {e}")
+        from views.popup_login_manual_sior_global import perguntar_login_manual_sior
+
+        try:
+            perguntar_login_manual_sior(
+                mensagem_erro=f"Erro ao iniciar sessão SIOR: {e}"
+            )
+        except Exception as ex_popup:
+            log_print(f"⚠️ Não foi possível abrir o popup de login manual SIOR: {ex_popup}")
 
         try:
             if navegador:

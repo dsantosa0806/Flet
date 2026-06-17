@@ -3,26 +3,20 @@
 # ==========================================================
 import os
 import re
+import time
 import threading
 from datetime import datetime
-
 import pandas as pd
-
 from navegador.sior_selenium_execution import iniciar_sessao_sior
-
-from requests_data.requisicoes_sior import (
-    get_dados_auto_cobranca,
-    get_valor_corrigido
-)
+from requests_data.requisicoes_sior import get_dados_placa_sior
 from utils.open_dir_downloads import abrir_pasta_exportacao
-
 from utils.popups import mostrar_alerta
 
 
 # ==========================================================
-# ABA - CONSULTA AIT COBRANÇA
+# ABA - CONSULTA SIOR PLACA
 # ==========================================================
-def aba_consulta_auto_cobranca(
+def aba_consulta_sior_placa(
     ft,
     DEFAULT_FONT_SIZE,
     HEADING_FONT_SIZE,
@@ -32,7 +26,6 @@ def aba_consulta_auto_cobranca(
 ):
 
     tabela_resultados = []
-    tabela_financeiro = []
 
     pagina_atual = 1
     itens_por_pagina = 3
@@ -48,15 +41,16 @@ def aba_consulta_auto_cobranca(
     )
 
     # ==========================================================
-    # INPUT AIT
+    # INPUT PLACA
     # ==========================================================
-    input_consulta = ft.TextField(
-        label="Número do AIT (um por linha)",
+    input_placa = ft.TextField(
+        label="Placa do veículo (uma por linha)",
         multiline=True,
         min_lines=5,
         max_lines=10,
         height=150,
         visible=True,
+        hint_text="Ex: HYQ0602 ou ABC1D23",
         label_style=ft.TextStyle(
             size=DEFAULT_FONT_SIZE
         ),
@@ -65,44 +59,16 @@ def aba_consulta_auto_cobranca(
         )
     )
 
-    # === FUNÇÕES AUXILIARES ===
-    def validar_codigos(codigos):
-        erros = []
-        if not codigos:
-            erros.append("⚠ É necessário inserir ao menos um código AIT.")
-        if len(set(codigos)) < len(codigos):
-            erros.append("⚠ Existem Número de AITs duplicados.")
-        if len(codigos) > 2000:
-            erros.append("⚠ Limite máximo de 2000 AITs por vez.")
-        if any(" " in c for c in codigos):
-            erros.append("⚠ Os Número de AIT não podem conter espaços.")
-        if any(not re.match(r"^[A-Za-z][0-9]{9}$", c) for c in codigos):
-            erros.append("⚠ Todos os Número de AITs devem ter o formato: Letra + 9 dígitos.")
-        return erros
-
-    # ==========================================================
-    # TOGGLE FINANCEIRO
-    # ==========================================================
-    toggle_financeiro = ft.Switch(
-        label="Buscar Valor Débito Atualizado?",
-        value=False,
-        visible=True
-    )
-
     # ==========================================================
     # EXPANDER
     # ==========================================================
     expander_input = ft.ExpansionTile(
         title=ft.Text(
-            "📥 Inserir Dados de Consulta"
+            "📥 Inserir Placas para Consulta"
         ),
         initially_expanded=True,
         controls=[
-            input_consulta,
-
-            ft.Container(height=10),
-
-            toggle_financeiro
+            input_placa
         ],
     )
 
@@ -151,15 +117,15 @@ def aba_consulta_auto_cobranca(
         width=200
     )
 
-    filtro_tipo = ft.Dropdown(
-        label="Filtrar por Tipo Recuperação",
+    filtro_situacao_fase = ft.Dropdown(
+        label="Filtrar por Situação Fase",
         options=[],
         width=250,
         visible=False
     )
 
-    filtro_situacao = ft.Dropdown(
-        label="Filtrar por Situação Fase",
+    filtro_situacao_debito = ft.Dropdown(
+        label="Filtrar por Situação Débito",
         options=[],
         width=250,
         visible=False
@@ -220,14 +186,24 @@ def aba_consulta_auto_cobranca(
     # COLUNAS
     # ==========================================================
     cols = [
+        "PlacaPesquisada",
         "NumeroAuto",
-        "Devedor",
-        "TipoRecuperacaoCredito",
-        "NUPFormatado",
-        "DataConstituicaoDefinitiva",
-        "ValorOriginal",
+        "DataInfracao",
+        "Proprietario",
+        "Veiculo",
+        "SituacaoFase",
+        "SituacaoDebito",
+        "ValorMultaFormatado",
+        "ValorMulta",
+        "VencimentoNP",
         "Enquadramento",
-        "SituacaoFase"
+        "Municipio",
+        "Local",
+        "EquipamentoAfericao",
+        "RegistroRENAINF",
+        "CodigoRegistroRenainf",
+        "MultaDesvinculada",
+        "CodigoInfracao"
     ]
 
     table = ft.DataTable(
@@ -266,6 +242,42 @@ def aba_consulta_auto_cobranca(
         ),
         visible=False
     )
+
+    # ==========================================================
+    # HELPERS
+    # ==========================================================
+    def extrair_valor_campo(valor):
+        """
+        Trata campos comuns da response do SIOR.
+
+        Exemplo:
+        DataInfracao e VencimentoNP retornam dicionário com DateString.
+        """
+
+        if (
+            isinstance(valor, dict)
+            and "DateString" in valor
+        ):
+            return valor.get(
+                "DateString",
+                ""
+            )
+
+        return valor
+
+    def normalizar_placa(placa):
+        """
+        Remove caracteres especiais e padroniza a placa em maiúsculo.
+        Exemplos:
+        - hyq-0602 -> HYQ0602
+        - abc1d23 -> ABC1D23
+        """
+
+        return re.sub(
+            r"[^A-Za-z0-9]",
+            "",
+            str(placa or "")
+        ).upper()
 
     # ==========================================================
     # TABELA
@@ -335,8 +347,8 @@ def aba_consulta_auto_cobranca(
 
         for w in [
             filtro_numero,
-            filtro_tipo,
-            filtro_situacao,
+            filtro_situacao_fase,
+            filtro_situacao_debito,
             btn_filtrar,
             btn_limpar
         ]:
@@ -393,17 +405,17 @@ def aba_consulta_auto_cobranca(
                     "NumeroAuto"
                 ] = filtro_numero.value.strip()
 
-            if filtro_tipo.value:
-
-                filtro_ativo[
-                    "TipoRecuperacaoCredito"
-                ] = filtro_tipo.value
-
-            if filtro_situacao.value:
+            if filtro_situacao_fase.value:
 
                 filtro_ativo[
                     "SituacaoFase"
-                ] = filtro_situacao.value
+                ] = filtro_situacao_fase.value
+
+            if filtro_situacao_debito.value:
+
+                filtro_ativo[
+                    "SituacaoDebito"
+                ] = filtro_situacao_debito.value
 
             atualizar_tabela()
 
@@ -417,7 +429,7 @@ def aba_consulta_auto_cobranca(
         ).start()
 
     # ==========================================================
-    # LIMPAR
+    # LIMPAR FILTROS
     # ==========================================================
     def limpar_filtros(e):
 
@@ -430,9 +442,9 @@ def aba_consulta_auto_cobranca(
 
         filtro_numero.value = ""
 
-        filtro_tipo.value = None
+        filtro_situacao_fase.value = None
 
-        filtro_situacao.value = None
+        filtro_situacao_debito.value = None
 
         atualizar_tabela()
 
@@ -486,7 +498,7 @@ def aba_consulta_auto_cobranca(
             )
 
             nome_arquivo = (
-                f"Consulta_AIT_Cobranca_{ts}.xlsx"
+                f"Consulta_SIOR_Placa_{ts}.xlsx"
             )
 
             path = os.path.join(
@@ -500,108 +512,11 @@ def aba_consulta_auto_cobranca(
                 engine="openpyxl"
             ) as writer:
 
-                # ======================================
-                # ABA PRINCIPAL
-                # ======================================
                 df.to_excel(
                     writer,
-                    sheet_name="Consulta Cobranca",
+                    sheet_name="Consulta Placa",
                     index=False
                 )
-
-                # ======================================
-                # FINANCEIRO
-                # ======================================
-                if toggle_financeiro.value:
-
-                    df_financeiro = pd.DataFrame(
-                        tabela_financeiro
-                    )
-
-                    def moeda_para_float(valor):
-
-                        try:
-
-                            valor = str(valor)
-
-                            valor = re.sub(
-                                r"[^\d,.-]",
-                                "",
-                                valor
-                            )
-
-                            valor = (
-                                valor
-                                .replace(".", "")
-                                .replace(",", ".")
-                            )
-
-                            return float(valor)
-
-                        except Exception:
-                            return 0.0
-
-                    if (
-                        "ValorOriginal"
-                        in df_financeiro.columns
-                    ):
-
-                        df_financeiro[
-                            "ValorOriginal"
-                        ] = (
-                            df_financeiro[
-                                "ValorOriginal"
-                            ].apply(
-                                moeda_para_float
-                            )
-                        )
-
-                    if (
-                        "ValorCorrigido"
-                        in df_financeiro.columns
-                    ):
-
-                        df_financeiro[
-                            "ValorCorrigido"
-                        ] = (
-                            df_financeiro[
-                                "ValorCorrigido"
-                            ].apply(
-                                moeda_para_float
-                            )
-                        )
-
-                    df_financeiro.to_excel(
-                        writer,
-                        sheet_name="Financeiro",
-                        index=False
-                    )
-
-                    worksheet = writer.sheets[
-                        "Financeiro"
-                    ]
-
-                    moeda_format = (
-                        'R$ #,##0.00'
-                    )
-
-                    for cell in worksheet["C"][1:]:
-
-                        cell.number_format = (
-                            moeda_format
-                        )
-
-                    for cell in worksheet["D"][1:]:
-
-                        cell.number_format = (
-                            moeda_format
-                        )
-
-                    for cell in worksheet["E"][1:]:
-
-                        cell.number_format = (
-                            '0.0000'
-                        )
 
             page.dialog = alerta_dialogo
 
@@ -614,9 +529,10 @@ def aba_consulta_auto_cobranca(
                 ft,
                 page,
                 "Exportado com sucesso",
-                "✅ Disponível na pasta Downloads. Abrindo arquivo...",
+                "✅ Disponível na pasta Downloads. Abrindo local do arquivo...",
                 tipo="success"
             )
+
             abrir_pasta_exportacao(path)
 
             msg_export.color = "green"
@@ -638,36 +554,100 @@ def aba_consulta_auto_cobranca(
             page.update()
 
     # ==========================================================
+    # VALIDA PLACAS
+    # ==========================================================
+    def validar_placas(lista_placas):
+
+        erros = []
+
+        # ======================================
+        # LIMITE
+        # ======================================
+        if len(lista_placas) > 100:
+            erros.append(
+                "Limite máximo de 100 placas por consulta."
+            )
+
+        # ======================================
+        # CAMPO VAZIO
+        # ======================================
+        if len(lista_placas) == 0:
+            erros.append(
+                "Informe ao menos uma placa para consulta."
+            )
+
+        if len(set(lista_placas)) < len(lista_placas):
+            erros.append("⚠ Existem Números duplicados.")
+
+        # ======================================
+        # PADRÕES ACEITOS
+        # ======================================
+        padrao_antigo = re.compile(
+            r"^[A-Z]{3}[0-9]{4}$"
+        )
+
+        padrao_mercosul = re.compile(
+            r"^[A-Z]{3}[0-9][A-Z][0-9]{2}$"
+        )
+
+        placas_normalizadas = []
+
+        for idx, item in enumerate(lista_placas, 1):
+
+            placa = normalizar_placa(item)
+
+            if (
+                padrao_antigo.match(placa)
+                or padrao_mercosul.match(placa)
+            ):
+                placas_normalizadas.append(placa)
+
+            else:
+                erros.append(
+                    f"Linha {idx}: "
+                    f"Placa inválida ({item}). "
+                    f"Use o padrão HYQ0602 ou ABC1D23."
+                )
+
+        return erros, placas_normalizadas
+
+    # ==========================================================
     # CONSULTA
     # ==========================================================
     def run_consulta(e):
 
         nonlocal tabela_resultados
-        nonlocal tabela_financeiro
         nonlocal pagina_atual
 
-        codigos = [
+        placas_informadas = [
             c.strip()
-            for c in input_consulta.value.splitlines()
+            for c in input_placa.value.splitlines()
             if c.strip()
         ]
 
-        codigos = [c.strip() for c in input_consulta.value.splitlines() if c.strip()]
-        erros = validar_codigos(codigos)
+        # ======================================
+        # VALIDAÇÃO PLACAS
+        # ======================================
+        erros_validacao, placas = validar_placas(
+            placas_informadas
+        )
 
-        if erros:
+        if erros_validacao:
+
+            page.dialog = alerta_dialogo
+
             mostrar_alerta(
                 ft,
                 page,
-                "Validação de CPF/CNPJ",
-                "\n".join(erros),
+                "Validação de Placa",
+                "\n".join(erros_validacao),
                 tipo="error"
             )
+
             page.update()
             return
 
         tabela_resultados.clear()
-        tabela_financeiro.clear()
 
         pagina_atual = 1
 
@@ -724,132 +704,67 @@ def aba_consulta_auto_cobranca(
 
                 page.update()
 
-                total = len(codigos)
+                total_placas = len(placas)
 
-                for idx, codigo in enumerate(
-                    codigos,
+                for idx_placa, placa in enumerate(
+                    placas,
                     1
                 ):
 
                     status.value = (
-                        f"Consultando "
-                        f"{idx}/{total}: {codigo}"
+                        f"Consultando placa "
+                        f"{idx_placa}/{total_placas}: {placa}"
                     )
 
-                    if total > 0:
-                        progress.value = idx / total
+                    if total_placas > 0:
+                        progress.value = idx_placa / total_placas
 
                     page.update()
 
-                    resposta = (
-                        get_dados_auto_cobranca(
-                            codigo,
-                            session
-                        )
+                    resposta = get_dados_placa_sior(
+                        placa,
+                        session
                     )
 
-                    for item in resposta.get(
+                    dados_response = resposta.get(
                         "Data",
                         []
-                    ):
+                    )
 
-                        linha = {}
+                    total_response = resposta.get(
+                        "Total",
+                        len(dados_response)
+                    )
+
+                    log.value += (
+                        f"📄 {placa} | "
+                        f"{len(dados_response)} de {total_response} registros retornados.\n"
+                    )
+
+                    page.update()
+
+                    for item in dados_response:
+
+                        linha = {
+                            "PlacaPesquisada": placa
+                        }
 
                         for k in cols:
 
+                            if k == "PlacaPesquisada":
+                                continue
+
                             valor = item.get(k, "")
 
-                            if (
-                                isinstance(valor, dict)
-                                and "DateString" in valor
-                            ):
-
-                                linha[k] = valor[
-                                    "DateString"
-                                ]
-
-                            else:
-
-                                linha[k] = valor
+                            linha[k] = extrair_valor_campo(
+                                valor
+                            )
 
                         tabela_resultados.append(
                             linha
                         )
 
-                    # ==================================
-                    # FINANCEIRO - APENAS AIT
-                    # ==================================
-                    if toggle_financeiro.value:
-
-                        try:
-
-                            financeiro = (
-                                get_valor_corrigido(
-                                    codigo,
-                                    session
-                                )
-                            )
-
-                            if financeiro:
-
-                                tabela_financeiro.append({
-
-                                    "NumeroAuto":
-                                        financeiro.get(
-                                            "NumeroAuto",
-                                            ""
-                                        ),
-
-                                    "DevedorNumero":
-                                        financeiro.get(
-                                            "DevedorNumero",
-                                            ""
-                                        ),
-
-                                    "ValorOriginal":
-                                        financeiro.get(
-                                            "ValorOriginal",
-                                            ""
-                                        ),
-
-                                    "ValorCorrigido":
-                                        financeiro.get(
-                                            "ValorCorrigido",
-                                            ""
-                                        ),
-
-                                    "FatorMultiplicador":
-                                        financeiro.get(
-                                            "FatorMultiplicador",
-                                            ""
-                                        )
-                                })
-
-                        except Exception as ex:
-
-                            log.value += (
-                                f"❌ Erro financeiro: "
-                                f"{ex}\n"
-                            )
-
-                            page.update()
-
-                filtro_tipo.options = [
-                    ft.dropdown.Option(
-                        key=f,
-                        text=f
-                    )
-                    for f in sorted({
-                        r.get(
-                            "TipoRecuperacaoCredito",
-                            ""
-                        )
-                        for r in tabela_resultados
-                    })
-                    if f
-                ]
-
-                filtro_situacao.options = [
+                filtro_situacao_fase.options = [
                     ft.dropdown.Option(
                         key=f,
                         text=f
@@ -857,6 +772,21 @@ def aba_consulta_auto_cobranca(
                     for f in sorted({
                         r.get(
                             "SituacaoFase",
+                            ""
+                        )
+                        for r in tabela_resultados
+                    })
+                    if f
+                ]
+
+                filtro_situacao_debito.options = [
+                    ft.dropdown.Option(
+                        key=f,
+                        text=f
+                    )
+                    for f in sorted({
+                        r.get(
+                            "SituacaoDebito",
                             ""
                         )
                         for r in tabela_resultados
@@ -933,8 +863,7 @@ def aba_consulta_auto_cobranca(
         ft.Row([
 
             ft.Text(
-                "SIOR > Consultar Auto de "
-                "Infração Cobrança",
+                "SIOR > Consulta > Placa",
                 size=10,
                 weight="bold"
             )
@@ -958,9 +887,9 @@ def aba_consulta_auto_cobranca(
 
             filtro_numero,
 
-            filtro_tipo,
+            filtro_situacao_fase,
 
-            filtro_situacao,
+            filtro_situacao_debito,
 
             btn_filtrar,
 

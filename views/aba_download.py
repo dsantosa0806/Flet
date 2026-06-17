@@ -12,6 +12,8 @@ from navegador.sior_selenium_execution import (
     option_navegador, load_cookies, store_cookies
 )
 from requests_data.requisicoes_sior import get_relatorio_financeiro, get_relatorio_resumido
+from utils.open_dir_downloads import abrir_pasta_exportacao
+from utils.popups import mostrar_alerta
 
 
 # === LÓGICA DO PROCESSAMENTO DE DOWNLOADS ===
@@ -86,6 +88,7 @@ def executar_fluxo_completo(codigos_input,
             if atualizar_progresso:
                 atualizar_progresso(i, total)
         log_print("✅ Todos os relatórios foram processados.")
+        abrir_pasta_exportacao(pasta_destino)
     finally:
         try:
             if navegador:
@@ -125,6 +128,13 @@ def aba_download(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page, bloquear, desbl
 
         if erros:
             log_download.value = "\n".join(erros)
+            mostrar_alerta(
+                ft,
+                page,
+                "Validação de Autos",
+                "\n".join(erros),
+                tipo="error"
+            )
             page.update()
             return
 

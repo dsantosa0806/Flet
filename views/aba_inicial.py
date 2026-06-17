@@ -1,4 +1,7 @@
 from requests_data.requisicoes_version import verificar_versao
+from config import  current_version
+
+VERSAO_LOCAL = current_version
 
 
 def aba_inicial(ft, HEADING_FONT_SIZE, DEFAULT_FONT_SIZE, page):
@@ -10,7 +13,7 @@ def aba_inicial(ft, HEADING_FONT_SIZE, DEFAULT_FONT_SIZE, page):
         alerta_versao = ft.Container(
             content=ft.Column([
                 ft.Text("🚨 Nova versão disponível!", size=DEFAULT_FONT_SIZE + 2, weight="bold", color=ft.Colors.RED),
-                ft.Text(f"Versão atual: 1.3.1", size=DEFAULT_FONT_SIZE),
+                ft.Text(f"Versão atual: {VERSAO_LOCAL}", size=DEFAULT_FONT_SIZE),
                 ft.Text(f"Nova versão: {versao_info['nova_versao']}", size=DEFAULT_FONT_SIZE),
                 ft.Text(f"Novidades:\n{versao_info['changelog']}", size=DEFAULT_FONT_SIZE),
                 ft.TextButton("📥 Baixar atualização", on_click=lambda _: page.launch_url(versao_info['link']))
@@ -30,23 +33,80 @@ def aba_inicial(ft, HEADING_FONT_SIZE, DEFAULT_FONT_SIZE, page):
         ft.Text("Essa aplicação automatiza e facilita a consulta e o "
                 "download de relatórios do SIOR e do Sapiens Dívida.",
                 size=DEFAULT_FONT_SIZE),
-        ft.Text("🧭 Navegação rápida:", size=DEFAULT_FONT_SIZE + 1, weight="bold"),
-        ft.Text("• SIOR > Consulta Auto de Infração: permite consultar dados detalhados dos AITs.",
-                size=DEFAULT_FONT_SIZE),
-        ft.Text("• SIOR > Download Relatórios: permite baixar os relatórios financeiro e resumido em PDF.",
-                size=DEFAULT_FONT_SIZE),
-        ft.Text("• SIOR > Painel Supervior: Permite extrair informações do painel do supervisor da equipe.",
-                size=DEFAULT_FONT_SIZE),
-        ft.Text("• Sapiens > Consulta Créditos: permite consultar os créditos por CPF/CNPJ no Sapiens Dívida.",
-                size=DEFAULT_FONT_SIZE),
-        ft.Text("• Ajuda > Sobre: informações e instruções da aplicação.",
-                size=DEFAULT_FONT_SIZE),
+        ft.Text(
+            "🧭 Navegação rápida:",
+            size=DEFAULT_FONT_SIZE + 1,
+            weight="bold"
+        ),
+
+        ft.Text(
+            "• Home: retorna à tela inicial da aplicação.",
+            size=DEFAULT_FONT_SIZE
+        ),
+
+        ft.Text(
+            "• SIOR > Consulta > Auto de Infração: permite consultar dados detalhados dos AITs.",
+            size=DEFAULT_FONT_SIZE
+        ),
+
+        ft.Text(
+            "• SIOR > Consulta > Proprietário: permite consultar autos vinculados ao CPF/CNPJ do proprietário.",
+            size=DEFAULT_FONT_SIZE
+        ),
+
+        ft.Text(
+            "• SIOR > Consulta > Placa: permite consultar autos vinculados à placa do veículo, incluindo padrão antigo e Mercosul.",
+            size=DEFAULT_FONT_SIZE
+        ),
+
+        ft.Text(
+            "• SIOR > Consulta > Auto de Infração Cobrança: permite consultar autos em situação de cobrança.",
+            size=DEFAULT_FONT_SIZE
+        ),
+
+        ft.Text(
+            "• SIOR > Consulta > Devedor em Cobrança: permite consultar cobranças vinculadas ao CPF/CNPJ do devedor.",
+            size=DEFAULT_FONT_SIZE
+        ),
+
+        ft.Text(
+            "• SIOR > Consulta > Acompanhamento Painel Supervisor: permite extrair informações do painel de acompanhamento da equipe.",
+            size=DEFAULT_FONT_SIZE
+        ),
+
+        ft.Text(
+            "• SIOR > Download Relatórios: permite baixar relatórios financeiro e resumido em PDF.",
+            size=DEFAULT_FONT_SIZE
+        ),
+
+        ft.Text(
+            "• SIOR > Login Manual SIOR: permite atualizar manualmente os cookies de sessão quando o login automático falhar.",
+            size=DEFAULT_FONT_SIZE
+        ),
+
+        ft.Text(
+            "• Sapiens > Consulta Créditos: permite consultar créditos por CPF/CNPJ no Sapiens Dívida.",
+            size=DEFAULT_FONT_SIZE
+        ),
+
+        ft.Text(
+            "• CADIN > Consulta CADIN: permite consultar informações de registro no CADIN.",
+            size=DEFAULT_FONT_SIZE
+        ),
+
+        ft.Text(
+            "• Ajuda > Sobre: apresenta informações, instruções e detalhes da aplicação.",
+            size=DEFAULT_FONT_SIZE
+        ),
+
         ft.Divider(),
+
         ft.Text("⚠️ Dicas importantes:", size=DEFAULT_FONT_SIZE + 1, weight="bold"),
 
         ft.GestureDetector(
             content=ft.Text(
                 "• Mantenha o Google Chrome instalado e atualizado. "
+                "Após atualização, reinicie o computador"
                 "Clique aqui para verificar como atualizar o Google Chrome",
                 size=DEFAULT_FONT_SIZE,
                 color=ft.Colors.BLUE,
@@ -54,7 +114,8 @@ def aba_inicial(ft, HEADING_FONT_SIZE, DEFAULT_FONT_SIZE, page):
             on_tap=lambda e: page.launch_url("https://support.google.com/chrome/answer/95414")),
         ft.Text("• Evite usar o SIOR ou Sapiens manualmente enquanto o RPA estiver rodando.", size=DEFAULT_FONT_SIZE),
         ft.Text("• Após o inicío de cada Consulta/Download,"
-                " a navegação ficará desabilitada até finalizar todo o processamento.", size=DEFAULT_FONT_SIZE),
+                " a navegação ficará desabilitada até finalizar todo o processamento."
+                "Sempre extraia o relatório em xlsx após finalizar a consulta.", size=DEFAULT_FONT_SIZE),
         ft.GestureDetector(
             content=ft.Text(
                 "• Clique aqui para assistir ao vídeo explicativo",
@@ -65,7 +126,7 @@ def aba_inicial(ft, HEADING_FONT_SIZE, DEFAULT_FONT_SIZE, page):
         ),
         ft.GestureDetector(
             content=ft.Text(
-                "• Em caso de erro, feche e abra a automação. ",
+                "• Em caso de erro, feche e abra o RPA novamente ",
                 size=DEFAULT_FONT_SIZE,
                 color=ft.Colors.RED,
             ),

@@ -1,12 +1,16 @@
 import flet as ft
 from views.aba_consulta_sapiens_divida import aba_consulta_sapiens
 from views.aba_consulta_sior import aba_consulta
+from views.aba_consulta_sior_cobranca import aba_consulta_auto_cobranca
 from views.aba_consulta_sior_painel_supervisor import aba_consulta_sior_painel_supervisor
+from views.aba_consulta_sior_placa import aba_consulta_sior_placa
+from views.aba_consulta_sior_proprietario import aba_consulta_sior_proprietario
 from views.aba_download import aba_download
 from views.aba_sobre import aba_sobre
+from views.popup_login_sior_manual import aba_login_manual_sior
 from config import DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, WINDOW_WIDTH, WINDOW_HEIGHT, APP_TITLE
 from views.aba_inicial import aba_inicial
-from views.aba_consulta_sior_cobranca import aba_consulta_auto_cobranca
+from views.aba_consulta_sior_cobranca_devedor import aba_consulta_auto_cobranca_devedor
 from views.aba_copia_pa import aba_copia_pa
 from views.aba_consulta_cadin import aba_consulta_cadin
 from utils.expiry_login import obter_texto_expiracoes_login
@@ -25,6 +29,7 @@ def construir_cabecalho(toggle_switch):
 def main(page: ft.Page):
     bloqueio_navegacao = ft.Ref[bool]()
     bloqueio_navegacao.current = False
+
     fechando_aplicacao = ft.Ref[bool]()
     fechando_aplicacao.current = False
 
@@ -56,7 +61,6 @@ def main(page: ft.Page):
         if evento not in ("close", "closing"):
             return
 
-        # Evita executar o fechamento mais de uma vez
         if fechando_aplicacao.current:
             return
 
@@ -121,7 +125,10 @@ def main(page: ft.Page):
     except Exception:
         pass
 
-    # Alternância de tema
+    # =========================================================
+    # ALTERNÂNCIA DE TEMA
+    # =========================================================
+
     def toggle_theme(e):
         page.theme_mode = "dark" if page.theme_mode == "light" else "light"
         toggle_switch.label = "🌙 Modo Escuro" if page.theme_mode == "light" else "🌞 Modo Claro"
@@ -134,7 +141,6 @@ def main(page: ft.Page):
         tooltip="Alternar claro/escuro"
     )
 
-    # Informação simples de expiração dos logins
     txt_expiracao_login = ft.Text(
         value=obter_texto_expiracoes_login(),
         size=10,
@@ -143,7 +149,6 @@ def main(page: ft.Page):
         selectable=True
     )
 
-    # Cabeçalho com título, expiração de login e botão de tema
     cabecalho = ft.Row([
         ft.Text(APP_TITLE, size=HEADING_FONT_SIZE, weight="bold"),
         ft.Container(expand=True),
@@ -160,7 +165,10 @@ def main(page: ft.Page):
         bloqueio_navegacao.current = False
         txt_expiracao_login.value = obter_texto_expiracoes_login()
 
-    # Callback para mudar conteúdo
+    # =========================================================
+    # CALLBACK PARA MUDAR CONTEÚDO
+    # =========================================================
+
     def atualizar_conteudo(opcao: str):
         if bloqueio_navegacao.current:
             page.snack_bar = ft.SnackBar(
@@ -174,6 +182,26 @@ def main(page: ft.Page):
         match opcao:
             case "SIOR_Consulta":
                 conteudo_abas.content = aba_consulta(
+                    ft,
+                    DEFAULT_FONT_SIZE,
+                    HEADING_FONT_SIZE,
+                    page,
+                    bloquear,
+                    desbloquear
+                )
+
+            case "SIOR_Proprietario":
+                conteudo_abas.content = aba_consulta_sior_proprietario(
+                    ft,
+                    DEFAULT_FONT_SIZE,
+                    HEADING_FONT_SIZE,
+                    page,
+                    bloquear,
+                    desbloquear
+                )
+
+            case "SIOR_Placa":
+                conteudo_abas.content = aba_consulta_sior_placa(
                     ft,
                     DEFAULT_FONT_SIZE,
                     HEADING_FONT_SIZE,
@@ -219,6 +247,14 @@ def main(page: ft.Page):
                     DEFAULT_FONT_SIZE
                 )
 
+            case "Login Manual SIOR":
+                conteudo_abas.content = aba_login_manual_sior(
+                    ft,
+                    DEFAULT_FONT_SIZE,
+                    HEADING_FONT_SIZE,
+                    page
+                )
+
             case "Inicio":
                 conteudo_abas.content = aba_inicial(
                     ft,
@@ -229,6 +265,16 @@ def main(page: ft.Page):
 
             case "SIOR_Consulta_Cobranca":
                 conteudo_abas.content = aba_consulta_auto_cobranca(
+                    ft,
+                    DEFAULT_FONT_SIZE,
+                    HEADING_FONT_SIZE,
+                    page,
+                    bloquear,
+                    desbloquear
+                )
+
+            case "SIOR_Consulta_Cobranca_Devedor":
+                conteudo_abas.content = aba_consulta_auto_cobranca_devedor(
                     ft,
                     DEFAULT_FONT_SIZE,
                     HEADING_FONT_SIZE,
@@ -255,94 +301,219 @@ def main(page: ft.Page):
                     page
                 )
 
+            case _:
+                page.snack_bar = ft.SnackBar(
+                    ft.Text(f"⚠ Opção de menu não encontrada: {opcao}"),
+                    bgcolor=ft.Colors.RED_400
+                )
+                page.snack_bar.open = True
+
         txt_expiracao_login.value = obter_texto_expiracoes_login()
         page.update()
 
-    # Menu principal e submenu
-    menu = ft.Row([
+    # =========================================================
+    # MENU PRINCIPAL COM SUBMENUS E ÍCONES SIMPLES
+    # =========================================================
 
-        ft.PopupMenuButton(
-            content=ft.Text("SIOR"),
-            tooltip="",
-            menu_padding=0,
-            menu_position=ft.PopupMenuPosition.UNDER,
-            items=[
-                ft.PopupMenuItem(
-                    text="Consulta Auto de Infração",
-                    on_click=lambda e: atualizar_conteudo("SIOR_Consulta"),
-                    checked=False
-                ),
-                ft.PopupMenuItem(),
-                ft.PopupMenuItem(
-                    text="Consulta Auto de Infração (Cobrança)",
-                    on_click=lambda e: atualizar_conteudo("SIOR_Consulta_Cobranca"),
-                    checked=False
-                ),
-                ft.PopupMenuItem(),
-                ft.PopupMenuItem(
-                    text="Download Relatórios",
-                    on_click=lambda e: atualizar_conteudo("SIOR_Download"),
-                    checked=False
-                ),
-                ft.PopupMenuItem(),
-                ft.PopupMenuItem(
-                    text="Painel Supervisor",
-                    on_click=lambda e: atualizar_conteudo("SIOR_Consulta_Painel_Super"),
-                    checked=False
-                ),
-            ]
-        ),
-
-        ft.PopupMenuButton(
-            content=ft.Text("Sapiens"),
-            tooltip="",
-            menu_padding=0,
-            menu_position=ft.PopupMenuPosition.UNDER,
-            items=[
-                ft.PopupMenuItem(
-                    text="Consulta Créditos",
-                    on_click=lambda e: atualizar_conteudo("Sapiens_Consulta"),
-                    checked=False
-                ),
-                # ft.PopupMenuItem(),
-                # ft.PopupMenuItem(
-                #     text="Download P.A's",
-                #     on_click=lambda e: atualizar_conteudo("Sapiens_Copia_Pa"),
-                #     checked=False
-                # ),
-            ]
-        ),
-
-        ft.PopupMenuButton(
-            content=ft.Text("CADIN"),
-            tooltip="",
-            menu_padding=0,
-            menu_position=ft.PopupMenuPosition.UNDER,
-            items=[
-                ft.PopupMenuItem(
-                    text="Consulta CADIN",
-                    on_click=lambda e: atualizar_conteudo("CADIN_Consulta"),
-                    checked=False
-                ),
-            ]
-        ),
-
-        ft.PopupMenuButton(
-            content=ft.Text("Ajuda"),
-            tooltip="",
-            menu_padding=0,
-            menu_position=ft.PopupMenuPosition.UNDER,
-            items=[
-                ft.PopupMenuItem(
-                    text="Sobre",
-                    on_click=lambda e: atualizar_conteudo("Sobre"),
-                    checked=False
-                )
-            ]
+    def texto_menu_principal(texto: str):
+        return ft.Container(
+            content=ft.Text(
+                texto,
+                weight="bold",
+                no_wrap=True
+            ),
+            padding=ft.padding.symmetric(horizontal=4, vertical=2)
         )
-    ])
 
-    # Conteúdo inicial padrão
+    def texto_item_menu(texto: str, largura: int = 250):
+        return ft.Container(
+            content=ft.Text(
+                texto,
+                no_wrap=True,
+                overflow=ft.TextOverflow.VISIBLE
+            ),
+            width=largura,
+            padding=ft.padding.symmetric(horizontal=2, vertical=2)
+        )
+
+    def item_menu(texto: str, icone, destino: str, largura: int = 250):
+        return ft.MenuItemButton(
+            leading=ft.Icon(icone, size=18),
+            content=texto_item_menu(texto, largura),
+            on_click=lambda e: atualizar_conteudo(destino)
+        )
+
+    def submenu_menu(texto: str, icone, controles, largura: int = 250):
+        return ft.SubmenuButton(
+            content=ft.Container(
+                content=ft.Row(
+                    controls=[
+                        ft.Icon(icone, size=18),
+                        ft.Text(texto, no_wrap=True),
+                        ft.Container(expand=True),
+                        ft.Icon(ft.Icons.CHEVRON_RIGHT, size=18),
+                    ],
+                    spacing=8,
+                    vertical_alignment=ft.CrossAxisAlignment.CENTER
+                ),
+                width=largura,
+                padding=ft.padding.symmetric(horizontal=2, vertical=2)
+            ),
+            controls=controles
+        )
+
+    menu = ft.MenuBar(
+        controls=[
+            ft.SubmenuButton(
+                content=texto_menu_principal("Home"),
+                controls=[
+                    item_menu(
+                        "Início",
+                        ft.Icons.FACT_CHECK_OUTLINED,
+                        "Inicio",
+                        largura=240
+                    ),
+                ]
+            ),
+
+            # =================================================
+            # SIOR
+            # =================================================
+            ft.SubmenuButton(
+                content=texto_menu_principal("SIOR"),
+                controls=[
+
+                    submenu_menu(
+                        "Consulta",
+                        ft.Icons.SEARCH,
+                        [
+                            item_menu(
+                                "Auto de Infração",
+                                ft.Icons.DESCRIPTION_OUTLINED,
+                                "SIOR_Consulta",
+                                largura=260
+                            ),
+
+                            item_menu(
+                                "Proprietário",
+                                ft.Icons.DESCRIPTION_OUTLINED,
+                                "SIOR_Proprietario",
+                                largura=260
+                            ),
+
+                            item_menu(
+                                "Placa",
+                                ft.Icons.DESCRIPTION_OUTLINED,
+                                "SIOR_Placa",
+                                largura=260
+                            ),
+
+                            item_menu(
+                                "Auto de Infração Cobrança",
+                                ft.Icons.REQUEST_QUOTE,
+                                "SIOR_Consulta_Cobranca",
+                                largura=260
+                            ),
+
+                            item_menu(
+                                "Devedor em Cobrança",
+                                ft.Icons.REQUEST_QUOTE,
+                                "SIOR_Consulta_Cobranca_Devedor",
+                                largura=260
+                            ),
+
+                            item_menu(
+                                "Acompanhamento Painel Supervisor",
+                                ft.Icons.DASHBOARD_OUTLINED,
+                                "SIOR_Consulta_Painel_Super",
+                                largura=260
+                            ),
+                        ],
+                        largura=240
+                    ),
+
+                    item_menu(
+                        "Download Relatórios",
+                        ft.Icons.DOWNLOAD,
+                        "SIOR_Download",
+                        largura=240
+                    ),
+
+                    item_menu(
+                        "Login Manual SIOR",
+                        ft.Icons.LOGIN,
+                        "Login Manual SIOR",
+                        largura=240
+                    ),
+                ]
+            ),
+
+            # =================================================
+            # SAPIENS
+            # =================================================
+            ft.SubmenuButton(
+                content=texto_menu_principal("Sapiens"),
+                controls=[
+                    item_menu(
+                        "Consulta Créditos",
+                        ft.Icons.MONETIZATION_ON_OUTLINED,
+                        "Sapiens_Consulta",
+                        largura=240
+                    ),
+
+                    # Caso queira reativar futuramente:
+                    # item_menu(
+                    #     "Download P.A's",
+                    #     ft.Icons.FOLDER_COPY_OUTLINED,
+                    #     "Sapiens_Copia_Pa",
+                    #     largura=240
+                    # ),
+                ]
+            ),
+
+            # =================================================
+            # CADIN
+            # =================================================
+            ft.SubmenuButton(
+                content=texto_menu_principal("CADIN"),
+                controls=[
+                    item_menu(
+                        "Consulta CADIN",
+                        ft.Icons.FACT_CHECK_OUTLINED,
+                        "CADIN_Consulta",
+                        largura=240
+                    ),
+                ]
+            ),
+
+            # =================================================
+            # AJUDA
+            # =================================================
+            ft.SubmenuButton(
+                content=texto_menu_principal("Ajuda"),
+                controls=[
+                    item_menu(
+                        "Sobre",
+                        ft.Icons.INFO_OUTLINE,
+                        "Sobre",
+                        largura=240
+                    ),
+
+                    item_menu(
+                        "Login Manual SIOR",
+                        ft.Icons.LOGIN,
+                        "Login Manual SIOR",
+                        largura=240
+                    ),
+                ]
+            ),
+        ]
+    )
+
+    # =========================================================
+    # CONTEÚDO INICIAL PADRÃO
+    # =========================================================
+
     atualizar_conteudo("Inicio")
 
     layout = ft.Column([

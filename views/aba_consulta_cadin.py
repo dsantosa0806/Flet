@@ -7,6 +7,7 @@ import threading
 
 from requests_data.requisicoes_cadin import consultar_cadin
 from requests_data.login_cadin import abrir_cadin
+from utils.open_dir_downloads import abrir_pasta_exportacao
 from utils.popups import mostrar_alerta  # ✅ usa sua função existente
 
 
@@ -128,6 +129,8 @@ def aba_consulta_cadin(ft, DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, page):
             df.to_excel(caminho, index=False)
             page.dialog = alerta_dialogo
             mostrar_alerta(ft, page, "Exportado com sucesso", "✅ Disponível em C:\\Downloads", tipo="success")
+
+            abrir_pasta_exportacao(downloads_path)
 
         except Exception as ex:
             page.dialog = alerta_dialogo

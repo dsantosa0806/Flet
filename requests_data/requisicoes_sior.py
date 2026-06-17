@@ -4,6 +4,7 @@ import os
 from bs4 import BeautifulSoup
 import re
 import time
+from datetime import datetime
 
 caminho_padrao = config.caminho_padrao
 
@@ -409,7 +410,6 @@ def get_valor_corrigido(auto: str, s: requests.Session):
             + financeiro_path
         )
 
-
         # =====================================================
         # 4. REQUEST FINANCEIRO
         # =====================================================
@@ -437,7 +437,6 @@ def get_valor_corrigido(auto: str, s: requests.Session):
             headers=headers_financeiro,
             timeout=60
         )
-
 
         if response_financeiro.status_code != 200:
 
@@ -632,3 +631,450 @@ def get_valor_corrigido(auto: str, s: requests.Session):
 
         return None
 
+
+def get_dados_proprietario_sior(
+    proprietario,
+    s,
+    page=1,
+    page_size=1000
+):
+    """
+    Consulta autos de infração por CPF/CNPJ do proprietário,
+    percorrendo todas as páginas retornadas pelo SIOR.
+
+    Regras:
+    - Data inicial fixa: 01/01/2010
+    - Data final: data atual
+    """
+
+    url = (
+        "https://servicos.dnit.gov.br/"
+        "sior/Infracao/ConsultaAutoInfracao/List"
+    )
+
+    data_inicial = "01/01/2010"
+    data_final = datetime.now().strftime("%d/%m/%Y")
+
+    todos_dados = []
+    pagina_atual = page
+    total_api = None
+    aggregate_results = None
+    errors = None
+
+    while True:
+
+        timestamp = int(time.time() * 1000)
+
+        params = {
+            "sort": "",
+            "page": pagina_atual,
+            "pageSize": page_size,
+            "group": "",
+            "filter": "",
+            "datainicial": data_inicial,
+            "datafinal": data_final,
+            "proprietario": proprietario,
+            "bind": "true",
+            "calledfromapi": "true",
+            "calledFromApi": "true",
+            "_": timestamp
+        }
+
+        headers = {
+            "Accept": "*/*",
+
+            "Referer": (
+                "https://servicos.dnit.gov.br/"
+                "sior/Infracao/ConsultaAutoInfracao"
+                f"?DataInicial={data_inicial}"
+                f"&DataFinal={data_final}"
+                f"&Proprietario={proprietario}"
+                "&Bind=true"
+                f"&Page={pagina_atual}"
+                f"&PageSize={page_size}"
+            ),
+
+            "X-Requested-With": "XMLHttpRequest",
+
+            "User-Agent": (
+                "Mozilla/5.0 "
+                "(Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 "
+                "(KHTML, like Gecko) "
+                "Chrome/149.0.0.0 Safari/537.36"
+            )
+        }
+
+        try:
+
+            response = s.get(
+                url,
+                params=params,
+                headers=headers,
+                timeout=60
+            )
+
+            response.raise_for_status()
+
+            json_data = response.json()
+
+            dados = json_data.get(
+                "Data",
+                []
+            )
+
+            if not isinstance(dados, list):
+                raise RuntimeError(
+                    f"Resposta inesperada na página {pagina_atual}: {json_data}"
+                )
+
+            todos_dados.extend(dados)
+
+            total_api = json_data.get(
+                "Total",
+                len(todos_dados)
+            )
+
+            aggregate_results = json_data.get(
+                "AggregateResults"
+            )
+
+            errors = json_data.get(
+                "Errors"
+            )
+
+            # Sem dados na página atual, encerra para evitar loop infinito
+            if not dados:
+                break
+
+            # Já coletou tudo que a API informou
+            if len(todos_dados) >= total_api:
+                break
+
+            pagina_atual += 1
+
+        except requests.exceptions.HTTPError as ex:
+
+            if (
+                ex.response is not None
+                and ex.response.status_code == 500
+            ):
+                raise RuntimeError(
+                    "Erro no servidor ao consultar proprietário. "
+                    "Tente novamente mais tarde."
+                )
+
+            raise RuntimeError(
+                f"Erro HTTP ao consultar proprietário {proprietario} "
+                f"na página {pagina_atual}: {ex}"
+            )
+
+        except Exception as ex:
+
+            raise RuntimeError(
+                f"Erro na requisição do proprietário {proprietario} "
+                f"na página {pagina_atual}: {ex}"
+            )
+
+    return {
+        "Data": todos_dados,
+        "Total": total_api if total_api is not None else len(todos_dados),
+        "AggregateResults": aggregate_results,
+        "Errors": errors
+    }
+
+
+def get_dados_placa_sior(
+    placa,
+    s,
+    page=1,
+    page_size=1000
+):
+    """
+    Consulta autos de infração por placa do veículo,
+    percorrendo todas as páginas retornadas pelo SIOR.
+
+    Regras:
+    - Data inicial fixa: 01/01/2010
+    - Data final: data atual
+    """
+
+    url = (
+        "https://servicos.dnit.gov.br/"
+        "sior/Infracao/ConsultaAutoInfracao/List"
+    )
+
+    data_inicial = "01/01/2010"
+    data_final = datetime.now().strftime("%d/%m/%Y")
+
+    todos_dados = []
+    pagina_atual = page
+    total_api = None
+    aggregate_results = None
+    errors = None
+
+    while True:
+
+        timestamp = int(time.time() * 1000)
+
+        params = {
+            "sort": "",
+            "page": pagina_atual,
+            "pageSize": page_size,
+            "group": "",
+            "filter": "",
+            "veiculoplaca": placa,
+            "datainicial": data_inicial,
+            "datafinal": data_final,
+            "bind": "true",
+            "calledfromapi": "true",
+            "calledFromApi": "true",
+            "_": timestamp
+        }
+
+        headers = {
+            "Accept": "*/*",
+
+            "Referer": (
+                "https://servicos.dnit.gov.br/"
+                "sior/Infracao/ConsultaAutoInfracao"
+                f"?VeiculoPlaca={placa}"
+                f"&DataInicial={data_inicial}"
+                f"&DataFinal={data_final}"
+                "&Bind=true"
+                f"&Page={pagina_atual}"
+                f"&PageSize={page_size}"
+            ),
+
+            "X-Requested-With": "XMLHttpRequest",
+
+            "User-Agent": (
+                "Mozilla/5.0 "
+                "(Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 "
+                "(KHTML, like Gecko) "
+                "Chrome/149.0.0.0 Safari/537.36"
+            )
+        }
+
+        try:
+
+            response = s.get(
+                url,
+                params=params,
+                headers=headers,
+                timeout=60
+            )
+
+            response.raise_for_status()
+
+            json_data = response.json()
+
+            dados = json_data.get(
+                "Data",
+                []
+            )
+
+            if not isinstance(dados, list):
+                raise RuntimeError(
+                    f"Resposta inesperada na página {pagina_atual}: {json_data}"
+                )
+
+            todos_dados.extend(dados)
+
+            total_api = json_data.get(
+                "Total",
+                len(todos_dados)
+            )
+
+            aggregate_results = json_data.get(
+                "AggregateResults"
+            )
+
+            errors = json_data.get(
+                "Errors"
+            )
+
+            # Sem dados na página atual, encerra para evitar loop infinito
+            if not dados:
+                break
+
+            # Já coletou tudo que a API informou
+            if len(todos_dados) >= total_api:
+                break
+
+            pagina_atual += 1
+
+        except requests.exceptions.HTTPError as ex:
+
+            if (
+                ex.response is not None
+                and ex.response.status_code == 500
+            ):
+                raise RuntimeError(
+                    "Erro no servidor ao consultar placa. "
+                    "Tente novamente mais tarde."
+                )
+
+            raise RuntimeError(
+                f"Erro HTTP ao consultar placa {placa} "
+                f"na página {pagina_atual}: {ex}"
+            )
+
+        except Exception as ex:
+
+            raise RuntimeError(
+                f"Erro na requisição da placa {placa} "
+                f"na página {pagina_atual}: {ex}"
+            )
+
+    return {
+        "Data": todos_dados,
+        "Total": total_api if total_api is not None else len(todos_dados),
+        "AggregateResults": aggregate_results,
+        "Errors": errors
+    }
+
+
+def get_dados_devedor_cobranca(
+    devedor,
+    s,
+    page=1,
+    page_size=1000
+):
+    """
+    Consulta dados de cobrança por CPF/CNPJ do devedor,
+    percorrendo todas as páginas retornadas pelo SIOR.
+
+    Retorna:
+        dict com:
+        - Data: lista completa de registros
+        - Total: total informado pela API
+        - AggregateResults
+        - Errors
+    """
+
+    url = (
+        "https://servicos.dnit.gov.br/"
+        "sior/Cobranca/CobrancaConsulta/List"
+    )
+
+    todos_dados = []
+    pagina_atual = page
+    total_api = None
+    aggregate_results = None
+    errors = None
+
+    while True:
+
+        timestamp = int(time.time() * 1000)
+
+        params = {
+            "sort": "",
+            "page": pagina_atual,
+            "pageSize": page_size,
+            "group": "",
+            "filter": "",
+            "devedornome": devedor,
+            "bind": "true",
+            "calledfromapi": "true",
+            "calledFromApi": "true",
+            "_": timestamp
+        }
+
+        headers = {
+            "Accept": "*/*",
+
+            "Referer": (
+                "https://servicos.dnit.gov.br/"
+                "sior/Cobranca/CobrancaConsulta"
+            ),
+
+            "X-Requested-With": "XMLHttpRequest",
+
+            "User-Agent": (
+                "Mozilla/5.0 "
+                "(Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 "
+                "(KHTML, like Gecko) "
+                "Chrome/149.0.0.0 Safari/537.36"
+            )
+        }
+
+        try:
+
+            response = s.get(
+                url,
+                params=params,
+                headers=headers,
+                timeout=60
+            )
+
+            response.raise_for_status()
+
+            json_data = response.json()
+
+            dados = json_data.get(
+                "Data",
+                []
+            )
+
+            if not isinstance(dados, list):
+                raise RuntimeError(
+                    f"Resposta inesperada na página {pagina_atual}: {json_data}"
+                )
+
+            todos_dados.extend(dados)
+
+            total_api = json_data.get(
+                "Total",
+                len(todos_dados)
+            )
+
+            aggregate_results = json_data.get(
+                "AggregateResults"
+            )
+
+            errors = json_data.get(
+                "Errors"
+            )
+
+            # Sem dados na página atual, encerra para evitar loop infinito
+            if not dados:
+                break
+
+            # Já coletou tudo que a API informou
+            if len(todos_dados) >= total_api:
+                break
+
+            pagina_atual += 1
+
+        except requests.exceptions.HTTPError as ex:
+
+            if (
+                ex.response is not None
+                and ex.response.status_code == 500
+            ):
+                raise RuntimeError(
+                    "Erro no servidor ao consultar devedor em cobrança. "
+                    "Tente novamente mais tarde."
+                )
+
+            raise RuntimeError(
+                f"Erro HTTP ao consultar devedor {devedor} "
+                f"na página {pagina_atual}: {ex}"
+            )
+
+        except Exception as ex:
+
+            raise RuntimeError(
+                f"Erro na requisição do devedor {devedor} "
+                f"na página {pagina_atual}: {ex}"
+            )
+
+    return {
+        "Data": todos_dados,
+        "Total": total_api if total_api is not None else len(todos_dados),
+        "AggregateResults": aggregate_results,
+        "Errors": errors
+    }
