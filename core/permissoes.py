@@ -19,6 +19,10 @@ class Recurso(str, Enum):
     SIOR_COBRANCA_DEVEDOR = "SIOR_Consulta_Cobranca_Devedor"
     SIOR_PAINEL_SUPERVISOR = "SIOR_Consulta_Painel_Super"
 
+    SIOR_VARREDURA_DIVIDA = "ADMIN_Varredura_SIOR"
+    SAPIENS_TAREFAS = "ADMIN_Sapiens_Tarefas"
+    SAPIENS_EXTINTOS = "ADMIN_Sapiens_Extintos_Pagamento"
+
     SAPIENS_CONSULTA = "Sapiens_Consulta"
     CADIN_CONSULTA = "CADIN_Consulta"
 
@@ -40,6 +44,9 @@ PERMISSOES = {
         Recurso.SIOR_COBRANCA_DEVEDOR,
         Recurso.SAPIENS_CONSULTA,
         Recurso.CADIN_CONSULTA,
+        Recurso.SIOR_VARREDURA_DIVIDA,
+        Recurso.SAPIENS_TAREFAS,
+        Recurso.SAPIENS_EXTINTOS
     },
 
     Perfil.ADMIN: set(Recurso),

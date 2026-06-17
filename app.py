@@ -21,6 +21,9 @@ from core.auth import obter_perfil_aplicacao
 from core.permissoes import Recurso, tem_permissao
 from views.admin.aba_admin_varredura_sior import aba_admin_varredura_sior
 from views.admin.aba_admin_sapiens_tarefas import aba_admin_sapiens_tarefas
+from views.admin.aba_admin_sapiens_extintos_pagamento import (
+    aba_admin_sapiens_extintos_pagamento
+)
 
 
 def construir_cabecalho(toggle_switch):
@@ -266,6 +269,26 @@ def main(page: ft.Page):
                     return
 
                 conteudo_abas.content = aba_admin_sapiens_tarefas(
+                    ft,
+                    DEFAULT_FONT_SIZE,
+                    HEADING_FONT_SIZE,
+                    page,
+                    bloquear,
+                    desbloquear
+                )
+
+            case "ADMIN_Sapiens_Extintos_Pagamento":
+                if not IS_ADMIN:
+                    conteudo_abas.content = acesso_negado()
+                    page.snack_bar = ft.SnackBar(
+                        ft.Text("🔒 Acesso restrito ao administrador."),
+                        bgcolor=ft.Colors.RED_400
+                    )
+                    page.snack_bar.open = True
+                    page.update()
+                    return
+
+                conteudo_abas.content = aba_admin_sapiens_extintos_pagamento(
                     ft,
                     DEFAULT_FONT_SIZE,
                     HEADING_FONT_SIZE,
@@ -557,6 +580,14 @@ def main(page: ft.Page):
                     ft.Icons.ASSIGNMENT_OUTLINED,
                     "ADMIN_Sapiens_Tarefas",
                     largura=280,
+                    permitido=True
+                ),
+
+                item_menu(
+                    "Sapiens - Extintos por Pagamento",
+                    ft.Icons.MONETIZATION_ON_OUTLINED,
+                    "ADMIN_Sapiens_Extintos_Pagamento",
+                    largura=300,
                     permitido=True
                 ),
             ])
