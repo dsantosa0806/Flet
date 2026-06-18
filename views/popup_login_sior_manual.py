@@ -786,14 +786,68 @@ def abrir_janela_login_manual_sior(
                         ),
                         ft.TextSpan(
                             ". Nessa área estarão disponíveis os cookies necessários para preencher os campos abaixo"
-                            " (Passo 2)."
+                            " (Passo 2). "
                         ),
+
+
                     ],
                     size=11
                 ),
                 ft.Text(
-                    "3. Localize os cookies ASP.NET_SessionId e .SIOR_AUTH_prod_v2 (Passo 3).",
+                    "3. Localize os cookies ASP.NET_SessionId e .SIOR_AUTH_prod_v2.",
                     size=11
+                ),
+
+                ft.Container(
+                    bgcolor=ft.Colors.with_opacity(0.12, ft.Colors.AMBER),
+                    border=ft.border.all(
+                        1,
+                        ft.Colors.AMBER_700
+                    ),
+                    border_radius=8,
+                    padding=ft.padding.all(10),
+                    margin=ft.margin.only(
+                        top=6,
+                        bottom=6
+                    ),
+                    content=ft.Row(
+                        controls=[
+                            ft.Icon(
+                                ft.Icons.WARNING_AMBER_ROUNDED,
+                                color=ft.Colors.AMBER_800,
+                                size=22
+                            ),
+
+                            ft.Column(
+                                expand=True,
+                                spacing=4,
+                                controls=[
+                                    ft.Text(
+                                        "3.1 ATENÇÃO OBRIGATÓRIA — Atualização dos cookies",
+                                        size=12,
+                                        weight="bold",
+                                        color=ft.Colors.AMBER_900
+                                    ),
+
+                                    ft.Text(
+                                        "Antes de capturar os novos valores, exclua os cookies antigos "
+                                        "ASP.NET_SessionId e .SIOR_AUTH_prod_v2. Para isso, selecione cada "
+                                        "linha correspondente e pressione DELETE.",
+                                        size=11,
+                                        weight="bold"
+                                    ),
+
+                                    ft.Text(
+                                        "Depois, recarregue a página, clique novamente em Entrar com GOV.BR "
+                                        "e capture os valores atualizados dos cookies ASP.NET_SessionId e "
+                                        ".SIOR_AUTH_prod_v2.",
+                                        size=11
+                                    ),
+                                ]
+                            )
+                        ],
+                        vertical_alignment=ft.CrossAxisAlignment.START
+                    )
                 ),
                 ft.Text(
                     "4. Copie os campos solicitados abaixo exatamente como aparecem no navegador (Passo 3).",
