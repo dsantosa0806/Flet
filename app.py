@@ -27,6 +27,9 @@ from views.admin.aba_admin_sapiens_extintos_pagamento import (
 from views.admin.aba_admin_sior_suspensao import aba_admin_sior_suspensao
 from views.admin.aba_admin_sior_reativacao import aba_admin_sior_reativacao
 from views.admin.aba_admin_sior_registro_pagamento import aba_admin_sior_registro_pagamento
+from views.admin.aba_admin_sior_varredura_encaminhamento import (
+    aba_admin_sior_varredura_encaminhamento
+)
 
 
 def construir_cabecalho(toggle_switch):
@@ -360,6 +363,26 @@ def main(page: ft.Page):
                     desbloquear
                 )
 
+            case "ADMIN_SIOR_Varredura_Encaminhamento":
+                if not IS_ADMIN:
+                    conteudo_abas.content = acesso_negado()
+                    page.snack_bar = ft.SnackBar(
+                        ft.Text("🔒 Acesso restrito ao administrador."),
+                        bgcolor=ft.Colors.RED_400
+                    )
+                    page.snack_bar.open = True
+                    page.update()
+                    return
+
+                conteudo_abas.content = aba_admin_sior_varredura_encaminhamento(
+                    ft,
+                    DEFAULT_FONT_SIZE,
+                    HEADING_FONT_SIZE,
+                    page,
+                    bloquear,
+                    desbloquear
+                )
+
             case "SIOR_Consulta":
                 conteudo_abas.content = aba_consulta(
                     ft,
@@ -627,55 +650,104 @@ def main(page: ft.Page):
     menu_admin = None
 
     if IS_ADMIN:
+        def texto_submenu_admin(titulo, icone):
+            return ft.Row(
+                controls=[
+                    ft.Icon(
+                        icone,
+                        size=18
+                    ),
+                    ft.Text(
+                        titulo,
+                        size=DEFAULT_FONT_SIZE,
+                        weight="bold"
+                    )
+                ],
+                spacing=8
+            )
+
         menu_admin = ft.SubmenuButton(
             content=texto_menu_principal("Admin"),
             controls=somente_permitidos([
-                item_menu(
-                    "Varredura SIOR - Cadastro Dívida",
-                    ft.Icons.ADMIN_PANEL_SETTINGS,
-                    "ADMIN_Varredura_SIOR",
-                    largura=280,
-                    permitido=True
+
+                # ==================================================
+                # SUBMENU ADMIN > SIOR
+                # ==================================================
+                ft.SubmenuButton(
+                    content=texto_submenu_admin(
+                        "SIOR",
+                        ft.Icons.HUB_OUTLINED
+                    ),
+                    controls=somente_permitidos([
+
+                        item_menu(
+                            "Varredura - Cadastro Dívida",
+                            ft.Icons.ADMIN_PANEL_SETTINGS,
+                            "ADMIN_Varredura_SIOR",
+                            largura=280,
+                            permitido=True
+                        ),
+
+                        item_menu(
+                            "Suspensão - Cobrança",
+                            ft.Icons.PAUSE_CIRCLE_OUTLINE,
+                            "ADMIN_SIOR_Suspensao",
+                            largura=280,
+                            permitido=True
+                        ),
+
+                        item_menu(
+                            "Reativação - Cobrança",
+                            ft.Icons.RESTART_ALT,
+                            "ADMIN_SIOR_Reativacao",
+                            largura=280,
+                            permitido=True
+                        ),
+
+                        item_menu(
+                            "Registro de Pagamento",
+                            ft.Icons.PAYMENT,
+                            "ADMIN_SIOR_Registro_Pagamento",
+                            largura=280,
+                            permitido=True
+                        ),
+
+                        item_menu(
+                            "Varredura SIOR - Encaminhamento",
+                            ft.Icons.SEND,
+                            "ADMIN_SIOR_Varredura_Encaminhamento",
+                            largura=280,
+                            permitido=True
+                        ),
+                    ])
                 ),
 
-                item_menu(
-                    "Sapiens - Relatórios de Tarefas",
-                    ft.Icons.ASSIGNMENT_OUTLINED,
-                    "ADMIN_Sapiens_Tarefas",
-                    largura=280,
-                    permitido=True
-                ),
+                # ==================================================
+                # SUBMENU ADMIN > SAPIENS
+                # ==================================================
+                ft.SubmenuButton(
+                    content=texto_submenu_admin(
+                        "Sapiens",
+                        ft.Icons.ACCOUNT_TREE_OUTLINED
+                    ),
+                    controls=somente_permitidos([
 
-                item_menu(
-                    "Sapiens - Extintos por Pagamento",
-                    ft.Icons.MONETIZATION_ON_OUTLINED,
-                    "ADMIN_Sapiens_Extintos_Pagamento",
-                    largura=300,
-                    permitido=True
-                ),
+                        item_menu(
+                            "Relatórios de Tarefas",
+                            ft.Icons.ASSIGNMENT_OUTLINED,
+                            "ADMIN_Sapiens_Tarefas",
+                            largura=280,
+                            permitido=True
+                        ),
 
-                item_menu(
-                    "Suspensão SIOR - Cobrança",
-                    ft.Icons.PAUSE_CIRCLE_OUTLINE,
-                    "ADMIN_SIOR_Suspensao",
-                    largura=280,
-                    permitido=True
-                ),
-
-                item_menu(
-                    "Reativação SIOR - Cobrança",
-                    ft.Icons.RESTART_ALT,
-                    "ADMIN_SIOR_Reativacao",
-                    largura=280,
-                    permitido=True
-                ),
-
-                item_menu(
-                    "Registro Pagamento SIOR",
-                    ft.Icons.PAYMENT,
-                    "ADMIN_SIOR_Registro_Pagamento",
-                    largura=280,
-                    permitido=True
+                        item_menu(
+                            "Extintos por Pagamento",
+                            ft.Icons.MONETIZATION_ON_OUTLINED,
+                            "ADMIN_Sapiens_Extintos_Pagamento",
+                            largura=300,
+                            permitido=True
+                        ),
+                    ])
                 ),
             ])
         )

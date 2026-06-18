@@ -25,6 +25,7 @@ class Recurso(str, Enum):
     ADMIN_SIOR_Suspensao = "ADMIN_SIOR_Suspensao"
     ADMIN_SIOR_Reativacao = "ADMIN_SIOR_Reativacao"
     ADMIN_SIOR_Registro_Pagamento = "ADMIN_SIOR_Registro_Pagamento"
+    ADMIN_SIOR_Encaminhamento_Varredura = "ADMIN_SIOR_Varredura_Encaminhamento"
 
     SAPIENS_CONSULTA = "Sapiens_Consulta"
     CADIN_CONSULTA = "CADIN_Consulta"
@@ -53,7 +54,8 @@ PERMISSOES = {
         Recurso.SIOR_PAINEL_SUPERVISOR,
         Recurso.ADMIN_SIOR_Suspensao,
         Recurso.ADMIN_SIOR_Reativacao,
-        Recurso.ADMIN_SIOR_Registro_Pagamento
+        Recurso.ADMIN_SIOR_Registro_Pagamento,
+        Recurso.ADMIN_SIOR_Encaminhamento_Varredura
 
     },
 
