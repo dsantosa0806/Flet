@@ -26,6 +26,7 @@ from views.admin.aba_admin_sapiens_extintos_pagamento import (
 )
 from views.admin.aba_admin_sior_suspensao import aba_admin_sior_suspensao
 from views.admin.aba_admin_sior_reativacao import aba_admin_sior_reativacao
+from views.admin.aba_admin_sior_registro_pagamento import aba_admin_sior_registro_pagamento
 
 
 def construir_cabecalho(toggle_switch):
@@ -331,6 +332,26 @@ def main(page: ft.Page):
                     return
 
                 conteudo_abas.content = aba_admin_sior_reativacao(
+                    ft,
+                    DEFAULT_FONT_SIZE,
+                    HEADING_FONT_SIZE,
+                    page,
+                    bloquear,
+                    desbloquear
+                )
+
+            case "ADMIN_SIOR_Registro_Pagamento":
+                if not IS_ADMIN:
+                    conteudo_abas.content = acesso_negado()
+                    page.snack_bar = ft.SnackBar(
+                        ft.Text("🔒 Acesso restrito ao administrador."),
+                        bgcolor=ft.Colors.RED_400
+                    )
+                    page.snack_bar.open = True
+                    page.update()
+                    return
+
+                conteudo_abas.content = aba_admin_sior_registro_pagamento(
                     ft,
                     DEFAULT_FONT_SIZE,
                     HEADING_FONT_SIZE,
@@ -645,6 +666,14 @@ def main(page: ft.Page):
                     "Reativação SIOR - Cobrança",
                     ft.Icons.RESTART_ALT,
                     "ADMIN_SIOR_Reativacao",
+                    largura=280,
+                    permitido=True
+                ),
+
+                item_menu(
+                    "Registro Pagamento SIOR",
+                    ft.Icons.PAYMENT,
+                    "ADMIN_SIOR_Registro_Pagamento",
                     largura=280,
                     permitido=True
                 ),

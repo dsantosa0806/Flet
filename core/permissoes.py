@@ -24,6 +24,7 @@ class Recurso(str, Enum):
     SAPIENS_EXTINTOS = "ADMIN_Sapiens_Extintos_Pagamento"
     ADMIN_SIOR_Suspensao = "ADMIN_SIOR_Suspensao"
     ADMIN_SIOR_Reativacao = "ADMIN_SIOR_Reativacao"
+    ADMIN_SIOR_Registro_Pagamento = "ADMIN_SIOR_Registro_Pagamento"
 
     SAPIENS_CONSULTA = "Sapiens_Consulta"
     CADIN_CONSULTA = "CADIN_Consulta"
@@ -51,7 +52,8 @@ PERMISSOES = {
         Recurso.SAPIENS_EXTINTOS,
         Recurso.SIOR_PAINEL_SUPERVISOR,
         Recurso.ADMIN_SIOR_Suspensao,
-        Recurso.ADMIN_SIOR_Reativacao
+        Recurso.ADMIN_SIOR_Reativacao,
+        Recurso.ADMIN_SIOR_Registro_Pagamento
 
     },
 
