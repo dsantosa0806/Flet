@@ -30,6 +30,12 @@ from views.admin.aba_admin_sior_registro_pagamento import aba_admin_sior_registr
 from views.admin.aba_admin_sior_varredura_encaminhamento import (
     aba_admin_sior_varredura_encaminhamento
 )
+from views.admin.aba_admin_sapiens_tarefas_em_aberto_setor import (
+    aba_admin_sapiens_tarefas_em_aberto_setor
+)
+from views.admin.aba_admin_sapiens_creditos_suspensos_parcelamento import (
+    aba_admin_sapiens_creditos_suspensos_parcelamento
+)
 
 
 def construir_cabecalho(toggle_switch):
@@ -375,6 +381,46 @@ def main(page: ft.Page):
                     return
 
                 conteudo_abas.content = aba_admin_sior_varredura_encaminhamento(
+                    ft,
+                    DEFAULT_FONT_SIZE,
+                    HEADING_FONT_SIZE,
+                    page,
+                    bloquear,
+                    desbloquear
+                )
+
+            case "ADMIN_Sapiens_Tarefas_Em_Aberto_Setor":
+                if not IS_ADMIN:
+                    conteudo_abas.content = acesso_negado()
+                    page.snack_bar = ft.SnackBar(
+                        ft.Text("🔒 Acesso restrito ao administrador."),
+                        bgcolor=ft.Colors.RED_400
+                    )
+                    page.snack_bar.open = True
+                    page.update()
+                    return
+
+                conteudo_abas.content = aba_admin_sapiens_tarefas_em_aberto_setor(
+                    ft,
+                    DEFAULT_FONT_SIZE,
+                    HEADING_FONT_SIZE,
+                    page,
+                    bloquear,
+                    desbloquear
+                )
+
+            case "ADMIN_Sapiens_Creditos_Suspensos_Parcelamento":
+                if not IS_ADMIN:
+                    conteudo_abas.content = acesso_negado()
+                    page.snack_bar = ft.SnackBar(
+                        ft.Text("🔒 Acesso restrito ao administrador."),
+                        bgcolor=ft.Colors.RED_400
+                    )
+                    page.snack_bar.open = True
+                    page.update()
+                    return
+
+                conteudo_abas.content = aba_admin_sapiens_creditos_suspensos_parcelamento(
                     ft,
                     DEFAULT_FONT_SIZE,
                     HEADING_FONT_SIZE,
@@ -745,6 +791,22 @@ def main(page: ft.Page):
                             ft.Icons.MONETIZATION_ON_OUTLINED,
                             "ADMIN_Sapiens_Extintos_Pagamento",
                             largura=300,
+                            permitido=True
+                        ),
+
+                        item_menu(
+                            "Sapiens - Tarefas em Aberto Setor",
+                            ft.Icons.PENDING_ACTIONS_OUTLINED,
+                            "ADMIN_Sapiens_Tarefas_Em_Aberto_Setor",
+                            largura=330,
+                            permitido=True
+                        ),
+
+                        item_menu(
+                            "Créditos Suspensos por Parcelamento",
+                            ft.Icons.PAUSE_CIRCLE_OUTLINE,
+                            "ADMIN_Sapiens_Creditos_Suspensos_Parcelamento",
+                            largura=360,
                             permitido=True
                         ),
                     ])

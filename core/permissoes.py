@@ -29,6 +29,8 @@ class Recurso(str, Enum):
 
     SAPIENS_CONSULTA = "Sapiens_Consulta"
     CADIN_CONSULTA = "CADIN_Consulta"
+    ADMIN_Sapiens_Tarefas_Em_Aberto_Setor = "ADMIN_Sapiens_Tarefas_Em_Aberto_Setor"
+    ADMIN_Sapiens_Creditos_Suspensos_Parcelamento = "ADMIN_Sapiens_Creditos_Suspensos_Parcelamento"
 
     ADMIN_USUARIOS = "ADMIN_Usuarios"
     ADMIN_CONFIGURACOES = "ADMIN_Configuracoes"
@@ -55,7 +57,9 @@ PERMISSOES = {
         Recurso.ADMIN_SIOR_Suspensao,
         Recurso.ADMIN_SIOR_Reativacao,
         Recurso.ADMIN_SIOR_Registro_Pagamento,
-        Recurso.ADMIN_SIOR_Encaminhamento_Varredura
+        Recurso.ADMIN_SIOR_Encaminhamento_Varredura,
+        Recurso.ADMIN_Sapiens_Tarefas_Em_Aberto_Setor,
+        Recurso.ADMIN_Sapiens_Creditos_Suspensos_Parcelamento
 
     },
 
