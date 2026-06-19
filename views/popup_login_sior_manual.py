@@ -3,6 +3,7 @@ import json
 from datetime import datetime, timezone
 import config
 from utils.locate_files_instalador import caminho_recurso
+from utils.popups import mostrar_alerta
 
 # =========================================================
 # CONFIGURAÇÕES DO COOKIES.JSON DO SIOR
@@ -688,15 +689,33 @@ def abrir_janela_login_manual_sior(
                 input_sior_auth_value.value
             )
 
-            txt_status.value = "✅ Cookies salvos com sucesso."
+            txt_status.value = "✅ Cookies salvos com sucesso. Agora clique em Fechar para concluir."
             txt_status.color = ft.Colors.GREEN
             txt_status.visible = True
 
-            try:
-                btn_cancelar.text = "Fechar"
-            except Exception:
-                pass
+            # Destaca o botão de cancelamento como ação de fechamento
+            btn_cancelar.text = "Fechar"
+            btn_cancelar.icon = ft.Icons.CLOSE
+            btn_cancelar.style = ft.ButtonStyle(
+                bgcolor=ft.Colors.RED_600,
+                color=ft.Colors.WHITE
+            )
+            btn_cancelar.tooltip = "Fechar janela de login manual"
 
+            mostrar_alerta(
+                ft,
+                page,
+                "Cookies Salvos com sucesso!",
+                f" Clique em fechar e tente realizar uma consulta/download no SIOR.",
+                tipo="success",
+            )
+
+            page.update()
+
+        except Exception as ex:
+            txt_status.value = f"❌ Erro ao salvar cookies: {ex}"
+            txt_status.color = ft.Colors.RED
+            txt_status.visible = True
             page.update()
 
             if callable(on_cookie_salvo):
