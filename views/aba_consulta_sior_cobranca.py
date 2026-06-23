@@ -473,7 +473,7 @@ def aba_consulta_auto_cobranca(
                     d for d in dados_filtrados
                     if valor.lower()
                     in str(
-                        d.get(chave, '')
+                        d.get(chave, "")
                     ).lower()
                 ]
 
@@ -495,10 +495,368 @@ def aba_consulta_auto_cobranca(
                 nome_arquivo
             )
 
+            # ==================================================
+            # HELPERS
+            # ==================================================
+            def normalizar_texto(valor):
+
+                try:
+                    if pd.isna(valor):
+                        return ""
+                except Exception:
+                    pass
+
+                return str(valor or "").strip()
+
+            def normalizar_auto(valor):
+
+                return (
+                    normalizar_texto(valor)
+                    .upper()
+                )
+
+            def moeda_para_float(valor):
+
+                try:
+
+                    if isinstance(valor, (int, float)):
+                        if pd.isna(valor):
+                            return 0.0
+
+                        return float(valor)
+
+                    texto = normalizar_texto(valor)
+
+                    if not texto:
+                        return 0.0
+
+                    texto = re.sub(
+                        r"[^\d,.-]",
+                        "",
+                        texto
+                    )
+
+                    if not texto:
+                        return 0.0
+
+                    # Formato brasileiro: 1.234,56
+                    if "," in texto:
+                        texto = (
+                            texto
+                            .replace(".", "")
+                            .replace(",", ".")
+                        )
+
+                    # Formato numérico comum: 1234.56
+                    else:
+                        texto = texto.replace(",", "")
+
+                    return float(texto)
+
+                except Exception:
+                    return 0.0
+
+            def ajustar_planilha(
+                worksheet,
+                aplicar_moeda_colunas=None,
+                aplicar_decimal_colunas=None
+            ):
+
+                aplicar_moeda_colunas = aplicar_moeda_colunas or []
+                aplicar_decimal_colunas = aplicar_decimal_colunas or []
+
+                moeda_format = "R$ #,##0.00"
+                decimal_format = "0.0000"
+
+                try:
+                    worksheet.freeze_panes = "A2"
+                    worksheet.auto_filter.ref = worksheet.dimensions
+                except Exception:
+                    pass
+
+                # Cabeçalho
+                try:
+                    for cell in worksheet[1]:
+                        cell.style = "Headline 3"
+                except Exception:
+                    pass
+
+                # Formatação por nome da coluna
+                try:
+                    headers = {
+                        cell.value: cell.column
+                        for cell in worksheet[1]
+                    }
+
+                    for nome_coluna in aplicar_moeda_colunas:
+                        col_idx = headers.get(nome_coluna)
+
+                        if col_idx:
+                            for row in worksheet.iter_rows(
+                                min_row=2,
+                                min_col=col_idx,
+                                max_col=col_idx
+                            ):
+                                for cell in row:
+                                    cell.number_format = moeda_format
+
+                    for nome_coluna in aplicar_decimal_colunas:
+                        col_idx = headers.get(nome_coluna)
+
+                        if col_idx:
+                            for row in worksheet.iter_rows(
+                                min_row=2,
+                                min_col=col_idx,
+                                max_col=col_idx
+                            ):
+                                for cell in row:
+                                    cell.number_format = decimal_format
+
+                except Exception:
+                    pass
+
+                # Ajuste de largura
+                try:
+                    for column_cells in worksheet.columns:
+
+                        max_length = 0
+                        column_letter = column_cells[0].column_letter
+
+                        for cell in column_cells:
+                            try:
+                                max_length = max(
+                                    max_length,
+                                    len(str(cell.value or ""))
+                                )
+                            except Exception:
+                                pass
+
+                        worksheet.column_dimensions[
+                            column_letter
+                        ].width = min(
+                            max_length + 2,
+                            45
+                        )
+
+                except Exception:
+                    pass
+
+            def criar_tabela_resumo(
+                df_consulta,
+                df_financeiro
+            ):
+
+                # ==========================================
+                # Garante colunas necessárias no financeiro
+                # ==========================================
+                for coluna in [
+                    "NumeroAuto",
+                    "DevedorNumero",
+                    "ValorOriginal",
+                    "ValorCorrigido",
+                    "FatorMultiplicador"
+                ]:
+                    if coluna not in df_financeiro.columns:
+                        df_financeiro[coluna] = ""
+
+                df_financeiro = df_financeiro.copy()
+
+                df_financeiro["NumeroAuto"] = (
+                    df_financeiro["NumeroAuto"]
+                    .apply(normalizar_auto)
+                )
+
+                df_financeiro["DevedorNumero"] = (
+                    df_financeiro["DevedorNumero"]
+                    .apply(normalizar_texto)
+                )
+
+                df_financeiro["ValorOriginal"] = (
+                    df_financeiro["ValorOriginal"]
+                    .apply(moeda_para_float)
+                )
+
+                df_financeiro["ValorCorrigido"] = (
+                    df_financeiro["ValorCorrigido"]
+                    .apply(moeda_para_float)
+                )
+
+                # ==========================================
+                # Consulta Cobrança: NumeroAuto x SituacaoFase
+                # ==========================================
+                if (
+                    not df_consulta.empty
+                    and "NumeroAuto" in df_consulta.columns
+                    and "SituacaoFase" in df_consulta.columns
+                ):
+
+                    df_fase = df_consulta[
+                        [
+                            "NumeroAuto",
+                            "SituacaoFase"
+                        ]
+                    ].copy()
+
+                    df_fase["NumeroAuto"] = (
+                        df_fase["NumeroAuto"]
+                        .apply(normalizar_auto)
+                    )
+
+                    df_fase["SituacaoFase"] = (
+                        df_fase["SituacaoFase"]
+                        .apply(normalizar_texto)
+                    )
+
+                    df_fase = df_fase.drop_duplicates(
+                        subset=[
+                            "NumeroAuto"
+                        ],
+                        keep="first"
+                    )
+
+                else:
+
+                    df_fase = pd.DataFrame(
+                        columns=[
+                            "NumeroAuto",
+                            "SituacaoFase"
+                        ]
+                    )
+
+                # ==========================================
+                # Une Financeiro + Consulta Cobrança
+                # Base: NumeroAuto
+                # ==========================================
+                df_base = pd.merge(
+                    df_financeiro,
+                    df_fase,
+                    on="NumeroAuto",
+                    how="left"
+                )
+
+                df_base["DevedorNumero"] = (
+                    df_base["DevedorNumero"]
+                    .replace("", "Não informado")
+                    .fillna("Não informado")
+                )
+
+                df_base["SituacaoFase"] = (
+                    df_base["SituacaoFase"]
+                    .replace("", "Não informado")
+                    .fillna("Não informado")
+                )
+
+                if df_base.empty:
+
+                    return pd.DataFrame(
+                        columns=[
+                            "DevedorNumero",
+                            "Total Geral"
+                        ]
+                    )
+
+                # ==========================================
+                # Pivot:
+                # Linhas: DevedorNumero
+                # Colunas: SituacaoFase
+                # Valores: soma ValorCorrigido
+                # ==========================================
+                df_tabela = pd.pivot_table(
+                    df_base,
+                    index="DevedorNumero",
+                    columns="SituacaoFase",
+                    values="ValorCorrigido",
+                    aggfunc="sum",
+                    fill_value=0
+                )
+
+                df_tabela.columns.name = None
+
+                df_tabela["Total Geral"] = (
+                    df_tabela.sum(
+                        axis=1
+                    )
+                )
+
+                df_tabela = df_tabela.sort_values(
+                    "Total Geral",
+                    ascending=False
+                )
+
+                # Linha total por fase
+                linha_total = (
+                    df_tabela
+                    .sum(numeric_only=True)
+                    .to_frame()
+                    .T
+                )
+
+                linha_total.index = [
+                    "Total Geral"
+                ]
+
+                df_tabela = pd.concat(
+                    [
+                        df_tabela,
+                        linha_total
+                    ]
+                )
+
+                df_tabela = (
+                    df_tabela
+                    .reset_index()
+                    .rename(
+                        columns={
+                            "index": "DevedorNumero"
+                        }
+                    )
+                )
+
+                return df_tabela
+
             with pd.ExcelWriter(
                 path,
                 engine="openpyxl"
             ) as writer:
+
+                df_financeiro = pd.DataFrame()
+
+                # ======================================
+                # FINANCEIRO / TABELA RESUMO
+                # A aba Tabela precisa ser criada primeiro
+                # para aparecer como primeira aba no XLSX.
+                # ======================================
+                if toggle_financeiro.value:
+
+                    df_financeiro = pd.DataFrame(
+                        tabela_financeiro
+                    )
+
+                    df_tabela = criar_tabela_resumo(
+                        df,
+                        df_financeiro
+                    )
+
+                    df_tabela.to_excel(
+                        writer,
+                        sheet_name="Tabela",
+                        index=False
+                    )
+
+                    worksheet_tabela = writer.sheets[
+                        "Tabela"
+                    ]
+
+                    colunas_moeda_tabela = [
+                        c
+                        for c in df_tabela.columns
+                        if c != "DevedorNumero"
+                    ]
+
+                    ajustar_planilha(
+                        worksheet_tabela,
+                        aplicar_moeda_colunas=colunas_moeda_tabela
+                    )
 
                 # ======================================
                 # ABA PRINCIPAL
@@ -509,67 +867,37 @@ def aba_consulta_auto_cobranca(
                     index=False
                 )
 
+                ajustar_planilha(
+                    writer.sheets[
+                        "Consulta Cobranca"
+                    ]
+                )
+
                 # ======================================
-                # FINANCEIRO
+                # ABA FINANCEIRO
                 # ======================================
                 if toggle_financeiro.value:
 
-                    df_financeiro = pd.DataFrame(
-                        tabela_financeiro
-                    )
-
-                    def moeda_para_float(valor):
-
-                        try:
-
-                            valor = str(valor)
-
-                            valor = re.sub(
-                                r"[^\d,.-]",
-                                "",
-                                valor
-                            )
-
-                            valor = (
-                                valor
-                                .replace(".", "")
-                                .replace(",", ".")
-                            )
-
-                            return float(valor)
-
-                        except Exception:
-                            return 0.0
-
-                    if (
-                        "ValorOriginal"
-                        in df_financeiro.columns
-                    ):
-
-                        df_financeiro[
-                            "ValorOriginal"
-                        ] = (
-                            df_financeiro[
-                                "ValorOriginal"
-                            ].apply(
-                                moeda_para_float
-                            )
+                    if df_financeiro.empty:
+                        df_financeiro = pd.DataFrame(
+                            columns=[
+                                "NumeroAuto",
+                                "DevedorNumero",
+                                "ValorOriginal",
+                                "ValorCorrigido",
+                                "FatorMultiplicador"
+                            ]
                         )
 
-                    if (
+                    for coluna in [
+                        "ValorOriginal",
                         "ValorCorrigido"
-                        in df_financeiro.columns
-                    ):
-
-                        df_financeiro[
-                            "ValorCorrigido"
-                        ] = (
-                            df_financeiro[
-                                "ValorCorrigido"
-                            ].apply(
-                                moeda_para_float
+                    ]:
+                        if coluna in df_financeiro.columns:
+                            df_financeiro[coluna] = (
+                                df_financeiro[coluna]
+                                .apply(moeda_para_float)
                             )
-                        )
 
                     df_financeiro.to_excel(
                         writer,
@@ -577,31 +905,20 @@ def aba_consulta_auto_cobranca(
                         index=False
                     )
 
-                    worksheet = writer.sheets[
+                    worksheet_financeiro = writer.sheets[
                         "Financeiro"
                     ]
 
-                    moeda_format = (
-                        'R$ #,##0.00'
+                    ajustar_planilha(
+                        worksheet_financeiro,
+                        aplicar_moeda_colunas=[
+                            "ValorOriginal",
+                            "ValorCorrigido"
+                        ],
+                        aplicar_decimal_colunas=[
+                            "FatorMultiplicador"
+                        ]
                     )
-
-                    for cell in worksheet["C"][1:]:
-
-                        cell.number_format = (
-                            moeda_format
-                        )
-
-                    for cell in worksheet["D"][1:]:
-
-                        cell.number_format = (
-                            moeda_format
-                        )
-
-                    for cell in worksheet["E"][1:]:
-
-                        cell.number_format = (
-                            '0.0000'
-                        )
 
             page.dialog = alerta_dialogo
 
@@ -617,6 +934,7 @@ def aba_consulta_auto_cobranca(
                 "✅ Disponível na pasta Downloads. Abrindo arquivo...",
                 tipo="success"
             )
+
             abrir_pasta_exportacao(path)
 
             msg_export.color = "green"

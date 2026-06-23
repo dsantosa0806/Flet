@@ -978,10 +978,15 @@ def aba_sior_distribuicao_processos(
             )
         )
 
+        # Regra de contador da distribuição:
+        # - Análise painel: somente fase Análise Sapiens.
+        # - Conferência painel: somente fase Conferência Sapiens.
+        # - Total painel: segue o quantitativo em Análise Sapiens, pois é esse
+        #   total que será somado à quantidade distribuída.
         return {
             "analise": analise,
             "conferencia": conferencia,
-            "total": analise + conferencia,
+            "total": analise,
         }
 
     def calcular_necessidade_distribuicao(
@@ -1005,8 +1010,8 @@ def aba_sior_distribuicao_processos(
             conferidor_nome
         )
 
-        atual_analisador = qtd_analisador["total"]
-        atual_conferidor = qtd_conferidor["total"]
+        atual_analisador = qtd_analisador["analise"]
+        atual_conferidor = qtd_conferidor["conferencia"]
 
         necessidade_analisador = max(
             meta_painel - atual_analisador,
@@ -1028,10 +1033,9 @@ def aba_sior_distribuicao_processos(
                 necessidade_conferidor,
             )
 
-            atual_considerado = max(
-                atual_analisador,
-                atual_conferidor,
-            )
+            # O Total painel da linha sempre acompanha o contador de Análise Sapiens
+            # do analisador selecionado. A conferência é exibida apenas como referência.
+            atual_considerado = atual_analisador
 
         return {
             "analisador_nome": analisador_nome,
@@ -1172,16 +1176,15 @@ def aba_sior_distribuicao_processos(
                     conferidor_nome
                 )
 
-                atual_analisador = int(qtd_analisador.get("total", 0))
-                atual_conferidor = int(qtd_conferidor.get("total", 0))
+                atual_analisador = int(qtd_analisador.get("analise", 0))
+                atual_conferidor = int(qtd_conferidor.get("conferencia", 0))
 
                 if str(dd_a.value) == str(dd_c.value):
                     atual_considerado = atual_analisador
                 else:
-                    atual_considerado = max(
-                        atual_analisador,
-                        atual_conferidor,
-                    )
+                    # Total painel segue somente a fase Análise Sapiens do analisador.
+                    # A coluna Conferência painel permanece apenas como informação de referência.
+                    atual_considerado = atual_analisador
 
                 txt_atual_analise_linha.value = str(atual_analisador)
                 txt_atual_conferencia_linha.value = str(atual_conferidor)
@@ -1382,20 +1385,18 @@ def aba_sior_distribuicao_processos(
             )
 
             atual_analisador = int(
-                qtd_analisador.get("total", 0)
+                qtd_analisador.get("analise", 0)
             )
 
             atual_conferidor = int(
-                qtd_conferidor.get("total", 0)
+                qtd_conferidor.get("conferencia", 0)
             )
 
             if str(analisador_id) == str(conferidor_id):
                 atual_considerado = atual_analisador
             else:
-                atual_considerado = max(
-                    atual_analisador,
-                    atual_conferidor,
-                )
+                # Total painel segue a fase Análise Sapiens do analisador.
+                atual_considerado = atual_analisador
 
             metas.append(
                 {
@@ -2111,7 +2112,7 @@ def aba_sior_distribuicao_processos(
                                     ft.Container(width=28, content=ft.Text("#", size=UI_FONT_TINY, weight="bold")),
                                     ft.Container(width=210, content=ft.Text("Analisador", size=UI_FONT_TINY, weight="bold")),
                                     ft.Container(width=210, content=ft.Text("Conferidor", size=UI_FONT_TINY, weight="bold")),
-                                    ft.Container(width=72, alignment=ft.alignment.center, content=ft.Text("Painel", size=UI_FONT_TINY, weight="bold")),
+                                    ft.Container(width=72, alignment=ft.alignment.center, content=ft.Text("Total painel", size=UI_FONT_TINY, weight="bold")),
                                     ft.Container(width=82, alignment=ft.alignment.center, content=ft.Text("Após distrib.", size=UI_FONT_TINY, weight="bold")),
                                     ft.Container(width=82, alignment=ft.alignment.center, content=ft.Text("Distribuir", size=UI_FONT_TINY, weight="bold")),
                                 ],

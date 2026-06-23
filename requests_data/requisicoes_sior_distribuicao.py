@@ -808,10 +808,15 @@ def calcular_quantitativos_tecnicos(
                 ).sum()
             )
 
+        # Regra da tela de distribuição:
+        # - "Análise painel" considera somente autos na fase Análise Sapiens.
+        # - "Conferência painel" considera somente autos na fase Conferência Sapiens.
+        # - "Total painel" deve seguir a quantidade em Análise Sapiens, pois é esse
+        #   o total operacional que será incrementado após a distribuição.
         resultado[nome] = {
             "analise": qtd_analise,
             "conferencia": qtd_conferencia,
-            "total": qtd_analise + qtd_conferencia,
+            "total": qtd_analise,
         }
 
     return resultado
@@ -863,6 +868,9 @@ def montar_df_quantitativos(
                 "Tecnico": nome,
                 "QtdAnaliseSapiens": qtd.get("analise", 0),
                 "QtdConferenciaSapiens": qtd.get("conferencia", 0),
+                # Mantém o nome da coluna por compatibilidade com as telas/relatórios,
+                # mas o valor agora representa o Total painel da distribuição,
+                # ou seja, somente o quantitativo em Análise Sapiens.
                 "TotalAnaliseConferencia": qtd.get("total", 0),
             }
         )

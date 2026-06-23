@@ -247,20 +247,60 @@ def aba_consulta_sior_proprietario(
         """
         Trata campos comuns da response do SIOR.
 
-        Exemplo:
-        DataInfracao e VencimentoNP retornam dicionário com DateString.
+        - Datas podem retornar dicionário com DateString.
+        - Campos vazios podem retornar None.
         """
 
-        if (
-            isinstance(valor, dict)
-            and "DateString" in valor
-        ):
-            return valor.get(
-                "DateString",
-                ""
+        if valor is None:
+            return ""
+
+        try:
+            if pd.isna(valor):
+                return ""
+        except Exception:
+            pass
+
+        if isinstance(valor, dict):
+            return (
+                valor.get("DateString")
+                or valor.get("Value")
+                or ""
             )
 
         return valor
+
+    def montar_opcoes_dropdown(campo):
+        """
+        Monta opções únicas para dropdown sem quebrar quando o SIOR retorna None.
+        """
+
+        valores = set()
+
+        for row in tabela_resultados:
+            valor = extrair_valor_campo(
+                row.get(campo, "")
+            )
+
+            valor = str(valor or "").strip()
+
+            if not valor:
+                continue
+
+            if valor.lower() in ("none", "nan", "nat"):
+                continue
+
+            valores.add(valor)
+
+        return [
+            ft.dropdown.Option(
+                key=valor,
+                text=valor
+            )
+            for valor in sorted(
+                valores,
+                key=lambda x: x.casefold()
+            )
+        ]
 
     # ==========================================================
     # TABELA
@@ -736,35 +776,13 @@ def aba_consulta_sior_proprietario(
                             linha
                         )
 
-                filtro_situacao_fase.options = [
-                    ft.dropdown.Option(
-                        key=f,
-                        text=f
-                    )
-                    for f in sorted({
-                        r.get(
-                            "SituacaoFase",
-                            ""
-                        )
-                        for r in tabela_resultados
-                    })
-                    if f
-                ]
+                filtro_situacao_fase.options = montar_opcoes_dropdown(
+                    "SituacaoFase"
+                )
 
-                filtro_situacao_debito.options = [
-                    ft.dropdown.Option(
-                        key=f,
-                        text=f
-                    )
-                    for f in sorted({
-                        r.get(
-                            "SituacaoDebito",
-                            ""
-                        )
-                        for r in tabela_resultados
-                    })
-                    if f
-                ]
+                filtro_situacao_debito.options = montar_opcoes_dropdown(
+                    "SituacaoDebito"
+                )
 
                 atualizar_tabela()
 
