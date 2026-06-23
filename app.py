@@ -36,6 +36,7 @@ from views.admin.aba_admin_sapiens_tarefas_em_aberto_setor import (
 from views.admin.aba_admin_sapiens_creditos_suspensos_parcelamento import (
     aba_admin_sapiens_creditos_suspensos_parcelamento
 )
+from views.aba_sior_distribuicao_processos import aba_sior_distribuicao_processos
 
 
 def construir_cabecalho(toggle_switch):
@@ -421,6 +422,16 @@ def main(page: ft.Page):
                     return
 
                 conteudo_abas.content = aba_admin_sapiens_creditos_suspensos_parcelamento(
+                    ft,
+                    DEFAULT_FONT_SIZE,
+                    HEADING_FONT_SIZE,
+                    page,
+                    bloquear,
+                    desbloquear
+                )
+
+            case "SIOR_Distribuicao_Processos":
+                conteudo_abas.content = aba_sior_distribuicao_processos(
                     ft,
                     DEFAULT_FONT_SIZE,
                     HEADING_FONT_SIZE,
@@ -878,6 +889,13 @@ def main(page: ft.Page):
                         ft.Icons.DASHBOARD_OUTLINED,
                         "SIOR_Consulta_Painel_Super",
                         largura=260
+                    ),
+                    item_menu(
+                        "Distribuição de Processos",
+                        ft.Icons.ACCOUNT_TREE_OUTLINED,
+                        "SIOR_Distribuicao_Processos",
+                        largura=280,
+                        permitido=True
                     ),
                 ]),
                 largura=240
