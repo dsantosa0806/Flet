@@ -386,11 +386,6 @@ def aba_sior_distribuicao_processos(
     container_resumo_plano = ft.Container(
         content=ft.Column(
             [
-                ft.Text(
-                    "📌 Resumo da distribuição automática",
-                    size=UI_FONT,
-                    weight="bold",
-                ),
                 tabela_resumo_plano,
             ],
             spacing=10,
@@ -427,11 +422,6 @@ def aba_sior_distribuicao_processos(
     container_painel_final = ft.Container(
         content=ft.Column(
             [
-                ft.Text(
-                    "📊 Painel atualizado após distribuição",
-                    size=UI_FONT,
-                    weight="bold",
-                ),
                 tabela_painel_final,
             ],
             spacing=10,
@@ -444,6 +434,47 @@ def aba_sior_distribuicao_processos(
             ft.Colors.GREY_600,
         ),
         bgcolor=None,
+        visible=False,
+    )
+
+    divider_resumo_distribuicao = ft.Divider(
+        height=8,
+        visible=False,
+    )
+
+    expander_resumo_plano = ft.ExpansionTile(
+        title=ft.Text(
+            "📌 Resumo da distribuição automática",
+            size=UI_FONT,
+            weight="bold",
+        ),
+        subtitle=ft.Text(
+            "Clique para visualizar o resumo gerado após a distribuição.",
+            size=UI_FONT_TINY,
+            color=ft.Colors.GREY_600,
+        ),
+        initially_expanded=False,
+        controls=[
+            container_resumo_plano,
+        ],
+        visible=False,
+    )
+
+    expander_painel_final = ft.ExpansionTile(
+        title=ft.Text(
+            "📊 Painel atualizado após distribuição",
+            size=UI_FONT,
+            weight="bold",
+        ),
+        subtitle=ft.Text(
+            "Clique para visualizar como ficou o painel após a execução.",
+            size=UI_FONT_TINY,
+            color=ft.Colors.GREY_600,
+        ),
+        initially_expanded=False,
+        controls=[
+            container_painel_final,
+        ],
         visible=False,
     )
 
@@ -517,10 +548,13 @@ def aba_sior_distribuicao_processos(
         tabela_resumo_plano.rows.clear()
         tabela_resumo_plano.visible = False
         container_resumo_plano.visible = False
+        expander_resumo_plano.visible = False
+        divider_resumo_distribuicao.visible = False
 
         tabela_painel_final.rows.clear()
         tabela_painel_final.visible = False
         container_painel_final.visible = False
+        expander_painel_final.visible = False
 
         txt_resumo_carga.value = ""
         txt_resumo_carga.visible = False
@@ -536,6 +570,9 @@ def aba_sior_distribuicao_processos(
         btn_gerar_plano.disabled = True
         btn_executar.disabled = True
         btn_executar.visible = False
+        btn_executar.text = "Executar distribuição"
+        btn_executar.bgcolor = ft.Colors.RED_600
+        btn_executar.color = "white"
         btn_marcar_todos.visible = False
         btn_desmarcar_todos.visible = False
         btn_abrir_logs.visible = False
@@ -1399,6 +1436,8 @@ def aba_sior_distribuicao_processos(
         if df.empty:
             tabela_resumo_plano.visible = False
             container_resumo_plano.visible = False
+            expander_resumo_plano.visible = False
+            divider_resumo_distribuicao.visible = False
             btn_executar.disabled = True
             page.update()
             return
@@ -1410,6 +1449,8 @@ def aba_sior_distribuicao_processos(
         if df_exec.empty:
             tabela_resumo_plano.visible = False
             container_resumo_plano.visible = False
+            expander_resumo_plano.visible = False
+            divider_resumo_distribuicao.visible = False
             btn_executar.disabled = True
             page.update()
             return
@@ -1452,6 +1493,8 @@ def aba_sior_distribuicao_processos(
 
         tabela_resumo_plano.visible = True
         container_resumo_plano.visible = True
+        expander_resumo_plano.visible = True
+        divider_resumo_distribuicao.visible = True
         btn_executar.disabled = False
 
         page.update()
@@ -1464,6 +1507,7 @@ def aba_sior_distribuicao_processos(
         if df.empty:
             tabela_painel_final.visible = False
             container_painel_final.visible = False
+            expander_painel_final.visible = False
             page.update()
             return
 
@@ -1487,6 +1531,7 @@ def aba_sior_distribuicao_processos(
 
         tabela_painel_final.visible = True
         container_painel_final.visible = True
+        expander_painel_final.visible = True
 
         page.update()
 
@@ -1685,6 +1730,9 @@ def aba_sior_distribuicao_processos(
                 txt_resumo_carga.visible = True
 
                 btn_gerar_plano.disabled = True
+                btn_executar.text = "Executar distribuição"
+                btn_executar.bgcolor = ft.Colors.RED_600
+                btn_executar.color = "white"
                 btn_executar.visible = True
                 btn_executar.disabled = False
 
@@ -2020,7 +2068,7 @@ def aba_sior_distribuicao_processos(
                                     width=165,
                                     padding=ft.padding.symmetric(horizontal=12, vertical=8),
                                     border_radius=10,
-                                    bgcolor=ft.Colors.GREEN_600,
+                                    bgcolor=ft.Colors.BLUE_600,
                                 ),
                                 ft.Container(
                                     content=ft.Column(
@@ -2042,7 +2090,7 @@ def aba_sior_distribuicao_processos(
                                     width=205,
                                     padding=ft.padding.symmetric(horizontal=12, vertical=8),
                                     border_radius=10,
-                                    bgcolor=ft.Colors.BLUE_600,
+                                    bgcolor=ft.Colors.GREEN_600,
                                 ),
                             ],
                             spacing=10,
@@ -2422,12 +2470,21 @@ def aba_sior_distribuicao_processos(
                 )
 
                 estado["execucao_concluida"] = True
+                btn_executar.text = "Carregue a equipe novamente"
+                btn_executar.bgcolor = ft.Colors.GREY_500
+                btn_executar.color = "white"
+                btn_executar.disabled = True
+                btn_executar.visible = True
 
                 adicionar_log(
                     (
                         f"✅ Execução finalizada. "
                         f"Sucesso: {total_sucesso} | Erro: {total_erro}."
                     )
+                )
+
+                adicionar_log(
+                    "ℹ️ Para executar uma nova distribuição, carregue a equipe novamente."
                 )
 
                 btn_abrir_logs.visible = True
@@ -2500,11 +2557,19 @@ def aba_sior_distribuicao_processos(
                 progress.visible = False
                 btn_carregar.disabled = False
                 btn_gerar_plano.disabled = True
-                btn_executar.visible = bool(estado["dados_processos_aptos"])
-                btn_executar.disabled = (
-                    not bool(estado["dados_processos_aptos"])
-                    or estado.get("execucao_concluida", False)
-                )
+
+                if estado.get("execucao_concluida", False):
+                    btn_executar.text = "Carregue a equipe novamente"
+                    btn_executar.bgcolor = ft.Colors.GREY_500
+                    btn_executar.color = "white"
+                    btn_executar.visible = True
+                    btn_executar.disabled = True
+                else:
+                    btn_executar.text = "Executar distribuição"
+                    btn_executar.bgcolor = ft.Colors.RED_600
+                    btn_executar.color = "white"
+                    btn_executar.visible = bool(estado["dados_processos_aptos"])
+                    btn_executar.disabled = not bool(estado["dados_processos_aptos"])
 
                 desbloquear()
                 page.update()
@@ -2592,8 +2657,9 @@ def aba_sior_distribuicao_processos(
             progress,
             status,
             container_tecnicos,
-            container_resumo_plano,
-            container_painel_final,
+            divider_resumo_distribuicao,
+            expander_resumo_plano,
+            expander_painel_final,
             ft.Divider(height=8),
             ft.ExpansionTile(
                 title=ft.Text(

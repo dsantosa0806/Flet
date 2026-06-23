@@ -40,7 +40,7 @@ FASE_APTA_DISTRIBUICAO = "Equipe Cadastro Sapiens"
 FASE_ANALISE = "Análise Sapiens"
 FASE_CONFERENCIA = "Conferência Sapiens"
 
-TAMANHO_LOTE_DISTRIBUICAO = 100
+TAMANHO_LOTE_DISTRIBUICAO = 1
 
 LogFn = Optional[Callable[[str], None]]
 
@@ -61,6 +61,7 @@ COLUNAS_PLANO = [
     "NumeroAuto",
     "DataConstituicao",
     "DataConstituicaoOrdenacaoDevedor",
+    "ValorOriginal",
     "DevedorNumeroInscricao",
     "DevedorIdentificacao",
     "Fase",
@@ -85,6 +86,7 @@ COLUNAS_LOG_REQUEST = [
     "NumeroAuto",
     "DevedorNumeroInscricao",
     "DevedorIdentificacao",
+    "ValorOriginal",
     "AnalisadorId",
     "AnalisadorNome",
     "ConferidorId",
@@ -244,6 +246,57 @@ def _obter_data_constituicao(row: Dict[str, Any]) -> Any:
     return ""
 
 
+def _obter_valor_original(row: Dict[str, Any]) -> Any:
+    """
+    Lê o valor original do auto retornado pela grid do SIOR, aceitando
+    possíveis nomes equivalentes usados em diferentes telas/responses.
+    """
+    if not isinstance(row, dict):
+        return ""
+
+    campos_possiveis = [
+        "ValorOriginal",
+        "ValorOriginalFormatado",
+        "ValorMulta",
+        "ValorMultaFormatado",
+        "Valor",
+        "ValorFormatado",
+    ]
+
+    for campo in campos_possiveis:
+        if campo not in row:
+            continue
+
+        valor = row.get(campo)
+
+        try:
+            if pd.isna(valor):
+                continue
+        except Exception:
+            pass
+
+        texto = str(valor or "").strip()
+
+        if texto:
+            return texto
+
+    return ""
+
+
+def _normalizar_registro_valor_original(row: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Mantém o campo ValorOriginal presente no registro, quando a response
+    retornar o valor com outro nome equivalente.
+    """
+    if not isinstance(row, dict):
+        return row
+
+    if not str(row.get("ValorOriginal", "") or "").strip():
+        row["ValorOriginal"] = _obter_valor_original(row)
+
+    return row
+
+
 def _normalizar_registro_data_constituicao(row: Dict[str, Any]) -> Dict[str, Any]:
     """
     Mantém o campo DataConstituicao presente no registro retornado pela request.
@@ -262,29 +315,48 @@ def _normalizar_registro_data_constituicao(row: Dict[str, Any]) -> Dict[str, Any
 
 def _parse_data_constituicao_para_ordenacao(valor: Any) -> pd.Timestamp:
     """
-    Converte a DataConstituicao para ordenação.
-    Datas inválidas/ausentes vão para o final da fila para não prejudicar
-    os devedores com data conhecida.
+    Converte a DataConstituicao para ordenação sem gerar warning do pandas.
+
+    Regra:
+    - formatos brasileiros são lidos com formato explícito;
+    - formatos ISO/SQL são lidos com dayfirst=False;
+    - datas inválidas/ausentes vão para o final da fila.
     """
     texto = str(_extrair_data(valor) or "").strip()
 
     if not texto:
         return pd.Timestamp.max
 
-    # Tenta primeiro formatos comuns do SIOR/BR e depois formatos ISO.
-    tentativas = [
-        {"dayfirst": True},
-        {"format": "%d/%m/%Y", "dayfirst": True},
-        {"format": "%Y-%m-%d", "dayfirst": False},
-        {"format": "%Y-%m-%d %H:%M:%S", "dayfirst": False},
+    texto = (
+        texto.replace("T", " ")
+        .replace("Z", "")
+        .strip()
+    )
+
+    # Remove frações de segundo comuns em respostas ISO.
+    texto = re.sub(r"\.\d+$", "", texto)
+
+    formatos = [
+        "%d/%m/%Y %H:%M:%S",
+        "%d/%m/%Y %H:%M",
+        "%d/%m/%Y",
+        "%Y-%m-%d %H:%M:%S",
+        "%Y-%m-%d %H:%M",
+        "%Y-%m-%d",
+        "%d-%m-%Y %H:%M:%S",
+        "%d-%m-%Y %H:%M",
+        "%d-%m-%Y",
+        "%Y/%m/%d %H:%M:%S",
+        "%Y/%m/%d %H:%M",
+        "%Y/%m/%d",
     ]
 
-    for kwargs in tentativas:
+    for formato in formatos:
         try:
             data = pd.to_datetime(
                 texto,
+                format=formato,
                 errors="coerce",
-                **kwargs,
             )
 
             if not pd.isna(data):
@@ -292,6 +364,18 @@ def _parse_data_constituicao_para_ordenacao(valor: Any) -> pd.Timestamp:
 
         except Exception:
             continue
+
+    try:
+        data = pd.to_datetime(
+            texto,
+            errors="coerce",
+        )
+
+        if not pd.isna(data):
+            return data
+
+    except Exception:
+        pass
 
     return pd.Timestamp.max
 
@@ -468,10 +552,12 @@ def get_acompanhamento_distribuicao_sior(
     - TecnicoAtualConferencia
     - CodigoTecnicoAtualConferencia
     - DataConstituicao
+    - ValorOriginal
 
     Observação:
     - O campo DataConstituicao é normalizado em todos os registros retornados.
     - Caso o SIOR retorne a data com outro nome equivalente, a função converte para DataConstituicao.
+    - Caso o SIOR retorne o valor com outro nome equivalente, a função converte para ValorOriginal.
     """
 
     preparar_headers_distribuicao(
@@ -530,7 +616,9 @@ def get_acompanhamento_distribuicao_sior(
         dados = dados_json.get("Data", [])
 
         dados = [
-            _normalizar_registro_data_constituicao(item)
+            _normalizar_registro_valor_original(
+                _normalizar_registro_data_constituicao(item)
+            )
             for item in dados
         ]
 
@@ -1296,6 +1384,7 @@ def _montar_linha_plano(
         "DataConstituicaoOrdenacaoDevedor": _formatar_data_ordenacao(
             row.get("_DataConstituicaoDevedorMin", "")
         ),
+        "ValorOriginal": _obter_valor_original(row),
         "DevedorNumeroInscricao": row.get("_DevedorNumeroInscricao", ""),
         "DevedorIdentificacao": row.get("_DevedorIdentificacao", ""),
         "Fase": row.get("Fase", ""),
@@ -1402,6 +1491,18 @@ def executar_distribuicao_por_plano(
     tamanho_lote: int = TAMANHO_LOTE_DISTRIBUICAO,
     pausa_entre_lotes: float = 0.8,
 ) -> pd.DataFrame:
+    """
+    Executa a distribuição de forma sequencial, auto por auto.
+
+    Observação importante:
+    O endpoint /Distribuir do SIOR não lida bem com payloads contendo
+    vários pares de analisador/conferidor na mesma chamada. Quando isso
+    ocorre, o backend pode retornar HTTP 500 com IndexOutOfRangeException.
+
+    Por isso, mesmo que o plano possua vários analisadores/conferidores,
+    cada auto é enviado em uma request individual, sempre usando índice [0]
+    no payload. A ordem do plano é preservada, mantendo a regra por devedor.
+    """
     if df_plano is None or df_plano.empty:
         raise ValueError(
             "Plano de distribuição vazio."
@@ -1427,45 +1528,73 @@ def executar_distribuicao_por_plano(
         orient="records"
     )
 
-    total_lotes = math.ceil(
-        len(registros) / tamanho_lote
+    total_processos = len(
+        registros
     )
 
     _log(
         log,
-        f"🚀 Iniciando distribuição de {len(registros)} processo(s) em {total_lotes} lote(s)."
+        (
+            f"🚀 Iniciando distribuição sequencial de {total_processos} processo(s). "
+            "Cada auto será enviado individualmente ao SIOR."
+        )
     )
 
-    for numero_lote, lote in enumerate(
-        _chunks(registros, tamanho_lote),
+    headers = {
+        "Accept": "application/json, text/javascript, */*; q=0.01",
+        "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
+        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+        "Origin": BASE_HOST,
+        "Referer": URL_DISTRIBUICAO_PAGE.format(
+            equipe_id=equipe_id
+        ),
+        "Host": "servicos.dnit.gov.br",
+        "X-Lt-Session-Guid": "",
+        "X-Requested-With": "XMLHttpRequest",
+        "Sec-Fetch-Dest": "empty",
+        "Sec-Fetch-Mode": "cors",
+        "Sec-Fetch-Site": "same-origin",
+    }
+
+    for numero_execucao, row in enumerate(
+        registros,
         start=1,
     ):
+        numero_auto = row.get(
+            "NumeroAuto",
+            "",
+        )
+
+        analisador_nome = row.get(
+            "AnalisadorNome",
+            "",
+        )
+
+        conferidor_nome = row.get(
+            "ConferidorNome",
+            "",
+        )
+
         _log(
             log,
-            f"📤 Enviando lote {numero_lote}/{total_lotes} com {len(lote)} processo(s)..."
+            (
+                f"📤 Enviando auto {numero_execucao}/{total_processos}: "
+                f"{numero_auto} → {analisador_nome} / {conferidor_nome}"
+            )
         )
 
+        # Envia sempre uma única distribuição por request.
+        # Assim o payload usa listDistribuicao[0] e evita erro de índice no backend.
         payload = _montar_payload_distribuicao(
-            lote
+            [row]
         )
-
-        headers = {
-            "Accept": "application/json, text/javascript, */*; q=0.01",
-            "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
-            "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-            "Origin": BASE_HOST,
-            "Referer": URL_DISTRIBUICAO_PAGE.format(
-                equipe_id=equipe_id
-            ),
-            "Host": "servicos.dnit.gov.br",
-            "X-Lt-Session-Guid": "",
-            "X-Requested-With": "XMLHttpRequest",
-            "Sec-Fetch-Dest": "empty",
-            "Sec-Fetch-Mode": "cors",
-            "Sec-Fetch-Site": "same-origin",
-        }
 
         try:
+            preparar_headers_distribuicao(
+                session,
+                equipe_id,
+            )
+
             resp = session.post(
                 URL_DISTRIBUIR,
                 headers=headers,
@@ -1480,10 +1609,13 @@ def executar_distribuicao_por_plano(
                     f"HTTP {http_status}: {resp.text[:500]}"
                 )
 
-                status_lote = "ERRO"
+                status_execucao = "ERRO"
 
             else:
-                dados = resp.json()
+                try:
+                    dados = resp.json()
+                except Exception:
+                    dados = {}
 
                 if dados.get("status") == "ok":
                     mensagem = (
@@ -1491,45 +1623,49 @@ def executar_distribuicao_por_plano(
                         or "Distribuição realizada com sucesso."
                     )
 
-                    status_lote = "SUCESSO"
+                    status_execucao = "SUCESSO"
 
                 else:
-                    mensagem = str(dados)[:1000]
-                    status_lote = "ERRO"
+                    mensagem = str(dados or resp.text)[:1000]
+                    status_execucao = "ERRO"
 
         except Exception as ex:
             http_status = ""
             mensagem = str(ex)
-            status_lote = "ERRO"
+            status_execucao = "ERRO"
 
         _log(
             log,
-            f"{'✅' if status_lote == 'SUCESSO' else '❌'} Lote {numero_lote}: {mensagem}"
-        )
-
-        for row in lote:
-            logs.append(
-                {
-                    "DataHora": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
-                    "Lote": numero_lote,
-                    "NumeroAuto": row.get("NumeroAuto", ""),
-                    "DevedorNumeroInscricao": row.get("DevedorNumeroInscricao", ""),
-                    "DevedorIdentificacao": row.get("DevedorIdentificacao", ""),
-                    "AnalisadorId": row.get("AnalisadorId", ""),
-                    "AnalisadorNome": row.get("AnalisadorNome", ""),
-                    "ConferidorId": row.get("ConferidorId", ""),
-                    "ConferidorNome": row.get("ConferidorNome", ""),
-                    "KeyDistribuicao": row.get("KeyDistribuicao", ""),
-                    "RowVersionDistribuicao": row.get("RowVersionDistribuicao", ""),
-                    "Status": status_lote,
-                    "Mensagem": mensagem,
-                    "HTTPStatus": http_status,
-                }
+            (
+                f"{'✅' if status_execucao == 'SUCESSO' else '❌'} "
+                f"Auto {numero_execucao}/{total_processos}: {mensagem}"
             )
-
-        time.sleep(
-            pausa_entre_lotes
         )
+
+        logs.append(
+            {
+                "DataHora": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
+                "Lote": numero_execucao,
+                "NumeroAuto": row.get("NumeroAuto", ""),
+                "DevedorNumeroInscricao": row.get("DevedorNumeroInscricao", ""),
+                "DevedorIdentificacao": row.get("DevedorIdentificacao", ""),
+                "ValorOriginal": row.get("ValorOriginal", ""),
+                "AnalisadorId": row.get("AnalisadorId", ""),
+                "AnalisadorNome": row.get("AnalisadorNome", ""),
+                "ConferidorId": row.get("ConferidorId", ""),
+                "ConferidorNome": row.get("ConferidorNome", ""),
+                "KeyDistribuicao": row.get("KeyDistribuicao", ""),
+                "RowVersionDistribuicao": row.get("RowVersionDistribuicao", ""),
+                "Status": status_execucao,
+                "Mensagem": mensagem,
+                "HTTPStatus": http_status,
+            }
+        )
+
+        if pausa_entre_lotes:
+            time.sleep(
+                pausa_entre_lotes
+            )
 
     return pd.DataFrame(
         logs,
@@ -1798,6 +1934,95 @@ def montar_df_quebras_devedor(
     return agrupado
 
 
+def montar_df_controle_distribuidos(
+    df_plano: pd.DataFrame,
+    df_logs_request: pd.DataFrame | None = None,
+) -> pd.DataFrame:
+    """
+    Monta a aba de controle com uma linha por auto efetivamente distribuído.
+
+    Prioridade:
+    - se houver logs de request com status SUCESSO, usa somente esses autos;
+    - se não houver logs, usa o plano executável como referência.
+    """
+    colunas = [
+        "Devedor",
+        "Auto distribuído",
+        "Analisador",
+        "Conferidor",
+        "Valor do auto de infração",
+    ]
+
+    if df_plano is None or df_plano.empty:
+        return pd.DataFrame(columns=colunas)
+
+    df_base = df_plano.copy()
+
+    if "PodeExecutar" in df_base.columns:
+        df_base = df_base[
+            df_base["PodeExecutar"] == True
+        ].copy()
+
+    if df_base.empty:
+        return pd.DataFrame(columns=colunas)
+
+    if (
+        df_logs_request is not None
+        and not df_logs_request.empty
+        and "Status" in df_logs_request.columns
+        and "NumeroAuto" in df_logs_request.columns
+    ):
+        df_sucesso = df_logs_request[
+            df_logs_request["Status"]
+            .astype(str)
+            .str.upper()
+            .eq("SUCESSO")
+        ].copy()
+
+        if not df_sucesso.empty:
+            autos_sucesso = set(
+                df_sucesso["NumeroAuto"]
+                .astype(str)
+                .str.strip()
+                .tolist()
+            )
+
+            df_base = df_base[
+                df_base["NumeroAuto"]
+                .astype(str)
+                .str.strip()
+                .isin(autos_sucesso)
+            ].copy()
+
+    if df_base.empty:
+        return pd.DataFrame(columns=colunas)
+
+    df_controle = pd.DataFrame({
+        "Devedor": df_base.get(
+            "DevedorIdentificacao",
+            pd.Series([""] * len(df_base), index=df_base.index),
+        ),
+        "Auto distribuído": df_base.get(
+            "NumeroAuto",
+            pd.Series([""] * len(df_base), index=df_base.index),
+        ),
+        "Analisador": df_base.get(
+            "AnalisadorNome",
+            pd.Series([""] * len(df_base), index=df_base.index),
+        ),
+        "Conferidor": df_base.get(
+            "ConferidorNome",
+            pd.Series([""] * len(df_base), index=df_base.index),
+        ),
+        "Valor do auto de infração": df_base.get(
+            "ValorOriginal",
+            pd.Series([""] * len(df_base), index=df_base.index),
+        ),
+    })
+
+    return df_controle[colunas]
+
+
 def exportar_distribuicao_completa_excel(
     caminho_saida: str,
     df_logs_interface: pd.DataFrame,
@@ -1820,6 +2045,11 @@ def exportar_distribuicao_completa_excel(
 
     df_quebras = montar_df_quebras_devedor(
         df_plano
+    )
+
+    df_controle_distribuidos = montar_df_controle_distribuidos(
+        df_plano,
+        df_logs_request,
     )
 
     if df_plano is not None and not df_plano.empty and "MetaPainel" in df_plano.columns:
@@ -1869,6 +2099,12 @@ def exportar_distribuicao_completa_excel(
             index=False,
         )
 
+        df_controle_distribuidos.to_excel(
+            writer,
+            sheet_name="Controle distribuídos",
+            index=False,
+        )
+
         df_plano.to_excel(
             writer,
             sheet_name="Distribuição Executada",
@@ -1893,17 +2129,6 @@ def exportar_distribuicao_completa_excel(
             index=False,
         )
 
-        df_quant_antes.to_excel(
-            writer,
-            sheet_name="Quantitativo Antes",
-            index=False,
-        )
-
-        df_quant_depois.to_excel(
-            writer,
-            sheet_name="Quantitativo Depois",
-            index=False,
-        )
 
         df_comparativo.to_excel(
             writer,
