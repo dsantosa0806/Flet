@@ -75,6 +75,12 @@ def aba_inicial(ft, HEADING_FONT_SIZE, DEFAULT_FONT_SIZE, page):
         ),
 
         ft.Text(
+            "• SIOR > Distribuição de processos: permite realizar a distribuição automatizada de processos realizada pelo"
+            "supervisor da equipe.",
+            size=DEFAULT_FONT_SIZE
+        ),
+
+        ft.Text(
             "• SIOR > Download Relatórios: permite baixar relatórios financeiro e resumido em PDF.",
             size=DEFAULT_FONT_SIZE
         ),

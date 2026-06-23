@@ -890,15 +890,17 @@ def main(page: ft.Page):
                         "SIOR_Consulta_Painel_Super",
                         largura=260
                     ),
-                    item_menu(
-                        "Distribuição de Processos",
-                        ft.Icons.ACCOUNT_TREE_OUTLINED,
-                        "SIOR_Distribuicao_Processos",
-                        largura=280,
-                        permitido=True
-                    ),
+
                 ]),
                 largura=240
+            ),
+
+            item_menu(
+                "Distribuição de Processos",
+                ft.Icons.ACCOUNT_TREE_OUTLINED,
+                "SIOR_Distribuicao_Processos",
+                largura=280,
+                permitido=True
             ),
 
             item_menu(
