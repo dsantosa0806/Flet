@@ -444,6 +444,15 @@ def criar_resumos_analiticos(
     piso: float,
     logs_df: Optional[pd.DataFrame] = None,
 ) -> Dict[str, pd.DataFrame]:
+    """
+    Cria as abas analíticas do XLSX com foco principal em QtdeAutosNumerico.
+
+    Regra de negócio:
+    - A classificação Acima/Abaixo do Piso continua sendo feita por devedor,
+      a partir do ValorTotalNumerico.
+    - As análises principais passam a somar QtdeAutosNumerico para demonstrar
+      a quantidade real de autos disponíveis em cada grupo.
+    """
     logs_df = logs_df if logs_df is not None else pd.DataFrame()
 
     if df.empty:
@@ -452,14 +461,19 @@ def criar_resumos_analiticos(
                 [
                     {"Indicador": "Piso utilizado", "Valor": piso},
                     {"Indicador": "Total de registros/devedores", "Valor": 0},
-                    {"Indicador": "Total de autos", "Valor": 0},
-                    {"Indicador": "Valor total", "Valor": 0},
+                    {"Indicador": "Total de devedores únicos", "Valor": 0},
+                    {"Indicador": "Total de autos disponíveis", "Valor": 0},
+                    {"Indicador": "Autos acima do piso", "Valor": 0},
+                    {"Indicador": "Autos abaixo do piso", "Valor": 0},
+                    {"Indicador": "ValorTotal somado", "Valor": 0},
                 ]
             ),
+            "Resumo Autos Piso": pd.DataFrame(),
             "TipoPessoa": pd.DataFrame(),
             "Classificacao Piso": pd.DataFrame(),
             "Tipo x Piso": pd.DataFrame(),
-            "Top Devedores": pd.DataFrame(),
+            "Top Devedores Autos": pd.DataFrame(),
+            "Top Devedores Valor": pd.DataFrame(),
             "Logs": logs_df,
         }
 
@@ -469,24 +483,84 @@ def criar_resumos_analiticos(
     if chave_devedor == "__indice__":
         df[chave_devedor] = df.index.astype(str)
 
-    total_devedores = df[chave_devedor].nunique(dropna=True)
-    total_autos = int(pd.to_numeric(df.get("QtdeAutosNumerico", 0), errors="coerce").fillna(0).sum())
-    valor_total = float(pd.to_numeric(df.get("ValorTotalNumerico", 0), errors="coerce").fillna(0).sum())
+    if "TipoPessoa" not in df.columns:
+        df["TipoPessoa"] = "Não identificado"
 
-    acima = int((df.get("ClassificacaoPiso", "") == "Acima do Piso").sum())
-    abaixo = int((df.get("ClassificacaoPiso", "") == "Abaixo do Piso").sum())
+    if "ClassificacaoPiso" not in df.columns:
+        df["ClassificacaoPiso"] = "Sem classificação"
+
+    if "QtdeAutosNumerico" not in df.columns:
+        df["QtdeAutosNumerico"] = 0
+
+    if "ValorTotalNumerico" not in df.columns:
+        df["ValorTotalNumerico"] = 0.0
+
+    df["QtdeAutosNumerico"] = (
+        pd.to_numeric(df["QtdeAutosNumerico"], errors="coerce")
+        .fillna(0)
+        .astype(int)
+    )
+
+    df["ValorTotalNumerico"] = (
+        pd.to_numeric(df["ValorTotalNumerico"], errors="coerce")
+        .fillna(0.0)
+        .astype(float)
+    )
+
+    total_registros = len(df)
+    total_devedores = int(df[chave_devedor].nunique(dropna=True))
+    total_autos = int(df["QtdeAutosNumerico"].sum())
+    valor_total = float(df["ValorTotalNumerico"].sum())
+
+    mask_acima = df["ClassificacaoPiso"].eq("Acima do Piso")
+    mask_abaixo = df["ClassificacaoPiso"].eq("Abaixo do Piso")
+
+    devedores_acima = int(mask_acima.sum())
+    devedores_abaixo = int(mask_abaixo.sum())
+
+    autos_acima = int(df.loc[mask_acima, "QtdeAutosNumerico"].sum())
+    autos_abaixo = int(df.loc[mask_abaixo, "QtdeAutosNumerico"].sum())
+
+    valor_acima = float(df.loc[mask_acima, "ValorTotalNumerico"].sum())
+    valor_abaixo = float(df.loc[mask_abaixo, "ValorTotalNumerico"].sum())
 
     resumo_geral = pd.DataFrame(
         [
             {"Indicador": "Piso utilizado", "Valor": piso},
-            {"Indicador": "Total de registros/devedores", "Valor": len(df)},
+            {"Indicador": "Total de registros/devedores", "Valor": total_registros},
             {"Indicador": "Total de devedores únicos", "Valor": total_devedores},
-            {"Indicador": "Total de autos", "Valor": total_autos},
+            {"Indicador": "Total de autos disponíveis", "Valor": total_autos},
+            {"Indicador": "Autos acima do piso", "Valor": autos_acima},
+            {"Indicador": "Autos abaixo do piso", "Valor": autos_abaixo},
+            {
+                "Indicador": "% autos acima do piso",
+                "Valor": round((autos_acima / total_autos) * 100, 2) if total_autos else 0,
+            },
+            {
+                "Indicador": "% autos abaixo do piso",
+                "Valor": round((autos_abaixo / total_autos) * 100, 2) if total_autos else 0,
+            },
+            {"Indicador": "Devedores acima do piso", "Valor": devedores_acima},
+            {"Indicador": "Devedores abaixo do piso", "Valor": devedores_abaixo},
+            {
+                "Indicador": "% devedores acima do piso",
+                "Valor": round((devedores_acima / total_registros) * 100, 2) if total_registros else 0,
+            },
+            {
+                "Indicador": "% devedores abaixo do piso",
+                "Valor": round((devedores_abaixo / total_registros) * 100, 2) if total_registros else 0,
+            },
             {"Indicador": "ValorTotal somado", "Valor": valor_total},
-            {"Indicador": "Devedores acima do piso", "Valor": acima},
-            {"Indicador": "Devedores abaixo do piso", "Valor": abaixo},
-            {"Indicador": "% acima do piso", "Valor": round((acima / len(df)) * 100, 2) if len(df) else 0},
-            {"Indicador": "% abaixo do piso", "Valor": round((abaixo / len(df)) * 100, 2) if len(df) else 0},
+            {"Indicador": "ValorTotal acima do piso", "Valor": valor_acima},
+            {"Indicador": "ValorTotal abaixo do piso", "Valor": valor_abaixo},
+            {
+                "Indicador": "Média de autos por devedor",
+                "Valor": round(total_autos / total_registros, 2) if total_registros else 0,
+            },
+            {
+                "Indicador": "Valor médio por auto",
+                "Valor": round(valor_total / total_autos, 2) if total_autos else 0,
+            },
             {"Indicador": "Data/Hora da análise", "Valor": datetime.now().strftime("%d/%m/%Y %H:%M:%S")},
         ]
     )
@@ -497,10 +571,14 @@ def criar_resumos_analiticos(
             .agg(
                 QuantidadeRegistros=(chave_devedor, "count"),
                 QuantidadeDevedores=(chave_devedor, pd.Series.nunique),
-                QtdeAutos=("QtdeAutosNumerico", "sum"),
-                ValorTotal=("ValorTotalNumerico", "sum"),
+                QtdeAutosNumerico=("QtdeAutosNumerico", "sum"),
+                ValorTotalNumerico=("ValorTotalNumerico", "sum"),
             )
             .reset_index()
+        )
+
+        resumo["PercentualAutos"] = _formatar_percentual(
+            (resumo["QtdeAutosNumerico"] / total_autos) * 100 if total_autos else 0
         )
 
         resumo["PercentualDevedores"] = _formatar_percentual(
@@ -508,14 +586,54 @@ def criar_resumos_analiticos(
         )
 
         resumo["PercentualValorTotal"] = _formatar_percentual(
-            (resumo["ValorTotal"] / valor_total) * 100 if valor_total else 0
+            (resumo["ValorTotalNumerico"] / valor_total) * 100 if valor_total else 0
         )
 
-        return resumo.sort_values(colunas).reset_index(drop=True)
+        resumo["AutosPorDevedor"] = resumo.apply(
+            lambda row: round(
+                row["QtdeAutosNumerico"] / row["QuantidadeDevedores"],
+                2,
+            )
+            if row.get("QuantidadeDevedores", 0)
+            else 0,
+            axis=1,
+        )
+
+        resumo["ValorMedioPorAuto"] = resumo.apply(
+            lambda row: round(
+                row["ValorTotalNumerico"] / row["QtdeAutosNumerico"],
+                2,
+            )
+            if row.get("QtdeAutosNumerico", 0)
+            else 0,
+            axis=1,
+        )
+
+        colunas_metricas = [
+            "QuantidadeRegistros",
+            "QuantidadeDevedores",
+            "PercentualDevedores",
+            "QtdeAutosNumerico",
+            "PercentualAutos",
+            "AutosPorDevedor",
+            "ValorTotalNumerico",
+            "PercentualValorTotal",
+            "ValorMedioPorAuto",
+        ]
+
+        resumo = resumo[colunas + colunas_metricas]
+
+        return resumo.sort_values(
+            by=["QtdeAutosNumerico", "ValorTotalNumerico"],
+            ascending=[False, False],
+        ).reset_index(drop=True)
 
     resumo_tipo = agregar_por(["TipoPessoa"])
     resumo_piso = agregar_por(["ClassificacaoPiso"])
     resumo_tipo_piso = agregar_por(["TipoPessoa", "ClassificacaoPiso"])
+
+    # Aba direta para leitura rápida do foco principal: autos por classificação de piso.
+    resumo_autos_piso = resumo_piso.copy()
 
     colunas_top = [
         coluna
@@ -532,27 +650,57 @@ def criar_resumos_analiticos(
         if coluna in df.columns
     ]
 
-    top_devedores = (
-        df[colunas_top]
-        .sort_values("ValorTotalNumerico", ascending=False)
-        .head(1000)
-        .reset_index(drop=True)
-        if colunas_top and "ValorTotalNumerico" in df.columns
-        else pd.DataFrame()
-    )
+    top_base = df[colunas_top].copy() if colunas_top else pd.DataFrame()
+
+    if not top_base.empty and "QtdeAutosNumerico" in top_base.columns:
+        if "ValorMedioPorAuto" not in top_base.columns:
+            top_base["ValorMedioPorAuto"] = top_base.apply(
+                lambda row: round(
+                    float(row.get("ValorTotalNumerico", 0) or 0) /
+                    int(row.get("QtdeAutosNumerico", 0) or 0),
+                    2,
+                )
+                if int(row.get("QtdeAutosNumerico", 0) or 0) > 0
+                else 0,
+                axis=1,
+            )
+
+        top_devedores_autos = (
+            top_base.sort_values(
+                ["QtdeAutosNumerico", "ValorTotalNumerico"],
+                ascending=[False, False],
+            )
+            .head(1000)
+            .reset_index(drop=True)
+        )
+    else:
+        top_devedores_autos = pd.DataFrame()
+
+    if not top_base.empty and "ValorTotalNumerico" in top_base.columns:
+        top_devedores_valor = (
+            top_base.sort_values(
+                ["ValorTotalNumerico", "QtdeAutosNumerico"],
+                ascending=[False, False],
+            )
+            .head(1000)
+            .reset_index(drop=True)
+        )
+    else:
+        top_devedores_valor = pd.DataFrame()
 
     amostra = df.head(5000).copy()
 
     return {
         "Resumo Geral": resumo_geral,
+        "Resumo Autos Piso": resumo_autos_piso,
         "TipoPessoa": resumo_tipo,
         "Classificacao Piso": resumo_piso,
         "Tipo x Piso": resumo_tipo_piso,
-        "Top Devedores": top_devedores,
+        "Top Devedores Autos": top_devedores_autos,
+        "Top Devedores Valor": top_devedores_valor,
         "Amostra Dados": amostra,
         "Logs": logs_df,
     }
-
 
 def _ajustar_largura_abas(writer) -> None:
     for ws in writer.sheets.values():

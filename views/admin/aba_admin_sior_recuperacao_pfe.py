@@ -384,25 +384,29 @@ def aba_admin_sior_recuperacao_pfe(
             txt_resumo.visible = True
             return
 
-        total = len(df_resultado)
+        total_devedores = len(df_resultado)
 
-        acima = (
-            int((df_resultado["ClassificacaoPiso"] == "Acima do Piso").sum())
-            if "ClassificacaoPiso" in df_resultado.columns
-            else 0
-        )
+        if "ClassificacaoPiso" in df_resultado.columns:
+            mask_acima = df_resultado["ClassificacaoPiso"].eq("Acima do Piso")
+            mask_abaixo = df_resultado["ClassificacaoPiso"].eq("Abaixo do Piso")
+        else:
+            mask_acima = pd.Series(False, index=df_resultado.index)
+            mask_abaixo = pd.Series(False, index=df_resultado.index)
 
-        abaixo = (
-            int((df_resultado["ClassificacaoPiso"] == "Abaixo do Piso").sum())
-            if "ClassificacaoPiso" in df_resultado.columns
-            else 0
-        )
+        devedores_acima = int(mask_acima.sum())
+        devedores_abaixo = int(mask_abaixo.sum())
 
-        total_autos = (
-            int(pd.to_numeric(df_resultado["QtdeAutosNumerico"], errors="coerce").fillna(0).sum())
-            if "QtdeAutosNumerico" in df_resultado.columns
-            else 0
-        )
+        if "QtdeAutosNumerico" in df_resultado.columns:
+            qtde_autos = pd.to_numeric(
+                df_resultado["QtdeAutosNumerico"],
+                errors="coerce",
+            ).fillna(0).astype(int)
+        else:
+            qtde_autos = pd.Series(0, index=df_resultado.index)
+
+        total_autos = int(qtde_autos.sum())
+        autos_acima = int(qtde_autos[mask_acima].sum())
+        autos_abaixo = int(qtde_autos[mask_abaixo].sum())
 
         valor_total = (
             float(pd.to_numeric(df_resultado["ValorTotalNumerico"], errors="coerce").fillna(0).sum())
@@ -410,10 +414,15 @@ def aba_admin_sior_recuperacao_pfe(
             else 0.0
         )
 
+        percentual_autos_acima = round((autos_acima / total_autos) * 100, 2) if total_autos else 0
+        percentual_autos_abaixo = round((autos_abaixo / total_autos) * 100, 2) if total_autos else 0
+
         txt_resumo.value = (
-            f"📊 Registros/devedores: {total} | Autos: {total_autos} | "
-            f"Acima do piso: {acima} | Abaixo do piso: {abaixo} | "
-            f"ValorTotal somado: R$ {valor_total:,.2f} | Piso utilizado: R$ {piso:,.2f}"
+            f"📊 Devedores: {total_devedores} | Autos disponíveis: {total_autos} | "
+            f"Autos acima do piso: {autos_acima} ({percentual_autos_acima}%) | "
+            f"Autos abaixo do piso: {autos_abaixo} ({percentual_autos_abaixo}%) | "
+            f"Devedores acima: {devedores_acima} | Devedores abaixo: {devedores_abaixo} | "
+            f"ValorTotal somado: R$ {valor_total:,.2f} | Piso: R$ {piso:,.2f}"
         )
         txt_resumo.visible = True
 
@@ -704,22 +713,13 @@ def aba_admin_sior_recuperacao_pfe(
     # ======================================================
     # LAYOUT
     # ======================================================
-    # ======================================================
-    # LAYOUT
-    # ======================================================
     return ft.Column(
         controls=[
-            ft.Row(
-                [
-                    ft.Text(
-                        "Admin > SIOR > Análise Recuperação Créditos PFE",
-                        size=10,
-                        weight="bold",
-                    )
-                ],
-                alignment="center",
+            ft.Text(
+                "Admin > SIOR > Análise Recuperação Créditos PFE",
+                size=10,
+                weight="bold",
             ),
-
 
             ft.Divider(),
 
@@ -734,8 +734,6 @@ def aba_admin_sior_recuperacao_pfe(
 
                         txt_info,
 
-                        txt_saida,
-
                         ft.Row(
                             controls=[
                                 dropdown_piso,
@@ -743,6 +741,8 @@ def aba_admin_sior_recuperacao_pfe(
                             vertical_alignment=ft.CrossAxisAlignment.END,
                             wrap=True,
                         ),
+
+                        txt_saida,
 
                         ft.Row(
                             controls=[
