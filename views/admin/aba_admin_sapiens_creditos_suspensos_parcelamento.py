@@ -350,26 +350,65 @@ def aba_admin_sapiens_creditos_suspensos_parcelamento(
                     log=adicionar_log
                 )
 
-                arquivo_relatorio = resultado.get(
+                arquivo_original = resultado.get(
                     "arquivo"
                 )
 
-                if arquivo_relatorio:
-                    arquivo_relatorio_atual["path"] = arquivo_relatorio
+                arquivo_tratado = resultado.get(
+                    "arquivo_tratado"
+                )
+
+                if arquivo_original:
+                    registrar_arquivo(
+                        "Relatório original XLSX",
+                        arquivo_original
+                    )
+
+                if arquivo_tratado:
+                    arquivo_relatorio_atual["path"] = arquivo_tratado
 
                     registrar_arquivo(
-                        "Relatório XLSX",
-                        arquivo_relatorio
+                        "Relatório tratado XLSX",
+                        arquivo_tratado
                     )
 
                     btn_abrir_relatorio.visible = True
 
                     adicionar_log(
-                        "📂 Abrindo relatório gerado..."
+                        f"📊 Total original lido: {resultado.get('total_relatorio_original', 0)}"
+                    )
+
+                    adicionar_log(
+                        f"📊 Total filtrado DNIT/especies: {resultado.get('total_filtrado', 0)}"
+                    )
+
+                    adicionar_log(
+                        f"📊 Total que consta na monitoria: {resultado.get('total_consta_monitoria', 0)}"
+                    )
+
+                    adicionar_log(
+                        f"📊 Total para registrar suspensão: {resultado.get('total_registrar_suspensao', 0)}"
+                    )
+
+                    adicionar_log(
+                        "📂 Abrindo relatório tratado gerado..."
                     )
 
                     abrir_arquivo_relatorio(
-                        arquivo_relatorio
+                        arquivo_tratado
+                    )
+
+                elif arquivo_original:
+                    arquivo_relatorio_atual["path"] = arquivo_original
+
+                    btn_abrir_relatorio.visible = True
+
+                    adicionar_log(
+                        "⚠️ Relatório tratado não foi gerado. Abrindo relatório original."
+                    )
+
+                    abrir_arquivo_relatorio(
+                        arquivo_original
                     )
 
                 adicionar_log(
@@ -501,7 +540,10 @@ def aba_admin_sapiens_creditos_suspensos_parcelamento(
                                 "Este módulo gera o relatório "
                                 "'CRÉDITOS SUSPENSOS POR PARCELAMENTO ATUALMENTE "
                                 "(DETALHADO)', baixa o XLSX disponibilizado pelo "
-                                "Super Sapiens e gera uma planilha XLSX com os logs."
+                                "Super Sapiens, filtra os créditos DNIT, compara com "
+                                "C:\\Monitoria-Suspensao.xlsx e gera uma planilha "
+                                "tratada com as abas Filtrado DNIT, Consta monitoria "
+                                "e Registrar suspensao."
                             ),
                             size=DEFAULT_FONT_SIZE
                         ),

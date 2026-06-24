@@ -18,6 +18,7 @@ class Recurso(str, Enum):
     SIOR_COBRANCA = "SIOR_Consulta_Cobranca"
     SIOR_COBRANCA_DEVEDOR = "SIOR_Consulta_Cobranca_Devedor"
     SIOR_PAINEL_SUPERVISOR = "SIOR_Consulta_Painel_Super"
+    SIOR_DISTRIBUICAO_SUPERVISOR = "SIOR_Distribuicao_Processos"
 
     SIOR_VARREDURA_DIVIDA = "ADMIN_Varredura_SIOR"
     SAPIENS_TAREFAS = "ADMIN_Sapiens_Tarefas"
@@ -59,7 +60,8 @@ PERMISSOES = {
         Recurso.ADMIN_SIOR_Registro_Pagamento,
         Recurso.ADMIN_SIOR_Encaminhamento_Varredura,
         Recurso.ADMIN_Sapiens_Tarefas_Em_Aberto_Setor,
-        Recurso.ADMIN_Sapiens_Creditos_Suspensos_Parcelamento
+        Recurso.ADMIN_Sapiens_Creditos_Suspensos_Parcelamento,
+        Recurso.SIOR_DISTRIBUICAO_SUPERVISOR
 
     },
 
