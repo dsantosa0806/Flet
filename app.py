@@ -271,16 +271,6 @@ def main(page: ft.Page):
                 )
 
             case "ADMIN_Sapiens_Tarefas":
-                if not IS_ADMIN:
-                    conteudo_abas.content = acesso_negado()
-                    page.snack_bar = ft.SnackBar(
-                        ft.Text("🔒 Acesso restrito ao administrador."),
-                        bgcolor=ft.Colors.RED_400
-                    )
-                    page.snack_bar.open = True
-                    page.update()
-                    return
-
                 conteudo_abas.content = aba_admin_sapiens_tarefas(
                     ft,
                     DEFAULT_FONT_SIZE,
@@ -931,6 +921,13 @@ def main(page: ft.Page):
                 ft.Icons.MONETIZATION_ON_OUTLINED,
                 "Sapiens_Consulta",
                 largura=240
+            ),
+            item_menu(
+                "Relatórios de Tarefas",
+                ft.Icons.ASSIGNMENT_OUTLINED,
+                "ADMIN_Sapiens_Tarefas",
+                largura=280,
+                permitido=True
             ),
 
             # Caso queira reativar futuramente:
