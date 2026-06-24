@@ -30,6 +30,9 @@ from views.admin.aba_admin_sior_registro_pagamento import aba_admin_sior_registr
 from views.admin.aba_admin_sior_varredura_encaminhamento import (
     aba_admin_sior_varredura_encaminhamento
 )
+from views.admin.aba_admin_sior_encaminhar_devedores import (
+    aba_admin_sior_encaminhar_devedores
+)
 from views.admin.aba_admin_sapiens_tarefas_em_aberto_setor import (
     aba_admin_sapiens_tarefas_em_aberto_setor
 )
@@ -37,6 +40,8 @@ from views.admin.aba_admin_sapiens_creditos_suspensos_parcelamento import (
     aba_admin_sapiens_creditos_suspensos_parcelamento
 )
 from views.aba_sior_distribuicao_processos import aba_sior_distribuicao_processos
+from views.admin.aba_admin_sior_recuperacao_pfe import (
+    aba_admin_sior_recuperacao_pfe)
 
 
 def construir_cabecalho(toggle_switch):
@@ -372,6 +377,46 @@ def main(page: ft.Page):
                     return
 
                 conteudo_abas.content = aba_admin_sior_varredura_encaminhamento(
+                    ft,
+                    DEFAULT_FONT_SIZE,
+                    HEADING_FONT_SIZE,
+                    page,
+                    bloquear,
+                    desbloquear
+                )
+
+            case "ADMIN_SIOR_Encaminhar_Devedores":
+                if not IS_ADMIN:
+                    conteudo_abas.content = acesso_negado()
+                    page.snack_bar = ft.SnackBar(
+                        ft.Text("🔒 Acesso restrito ao administrador."),
+                        bgcolor=ft.Colors.RED_400
+                    )
+                    page.snack_bar.open = True
+                    page.update()
+                    return
+
+                conteudo_abas.content = aba_admin_sior_encaminhar_devedores(
+                    ft,
+                    DEFAULT_FONT_SIZE,
+                    HEADING_FONT_SIZE,
+                    page,
+                    bloquear,
+                    desbloquear
+                )
+
+            case "ADMIN_SIOR_Recuperacao_PFE":
+                if not IS_ADMIN:
+                    conteudo_abas.content = acesso_negado()
+                    page.snack_bar = ft.SnackBar(
+                        ft.Text("🔒 Acesso restrito ao administrador."),
+                        bgcolor=ft.Colors.RED_400
+                    )
+                    page.snack_bar.open = True
+                    page.update()
+                    return
+
+                conteudo_abas.content = aba_admin_sior_recuperacao_pfe(
                     ft,
                     DEFAULT_FONT_SIZE,
                     HEADING_FONT_SIZE,
@@ -761,9 +806,25 @@ def main(page: ft.Page):
 
                         item_menu(
                             "Varredura SIOR - Encaminhamento",
-                            ft.Icons.SEND,
+                            ft.Icons.DASHBOARD_OUTLINED,
                             "ADMIN_SIOR_Varredura_Encaminhamento",
                             largura=280,
+                            permitido=True
+                        ),
+
+                        item_menu(
+                            "Encaminhar Devedores SIOR",
+                            ft.Icons.SEND,
+                            "ADMIN_SIOR_Encaminhar_Devedores",
+                            largura=280,
+                            permitido=True
+                        ),
+
+                        item_menu(
+                            "Análise Recuperação Créditos PFE",
+                            ft.Icons.INSIGHTS_OUTLINED,
+                            "ADMIN_SIOR_Recuperacao_PFE",
+                            largura=330,
                             permitido=True
                         ),
                     ])

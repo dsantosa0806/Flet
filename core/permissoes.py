@@ -27,6 +27,8 @@ class Recurso(str, Enum):
     ADMIN_SIOR_Reativacao = "ADMIN_SIOR_Reativacao"
     ADMIN_SIOR_Registro_Pagamento = "ADMIN_SIOR_Registro_Pagamento"
     ADMIN_SIOR_Encaminhamento_Varredura = "ADMIN_SIOR_Varredura_Encaminhamento"
+    ADMIN_SIOR_Varredura_Recuperacao_PFE = "ADMIN_SIOR_Recuperacao_PFE"
+    ADMIN_SIOR_Encaminhamento_Devedores = "ADMIN_SIOR_Encaminhar_Devedores"
 
     SAPIENS_CONSULTA = "Sapiens_Consulta"
     CADIN_CONSULTA = "CADIN_Consulta"
@@ -61,7 +63,9 @@ PERMISSOES = {
         Recurso.ADMIN_SIOR_Encaminhamento_Varredura,
         Recurso.ADMIN_Sapiens_Tarefas_Em_Aberto_Setor,
         Recurso.ADMIN_Sapiens_Creditos_Suspensos_Parcelamento,
-        Recurso.SIOR_DISTRIBUICAO_SUPERVISOR
+        Recurso.SIOR_DISTRIBUICAO_SUPERVISOR,
+        Recurso.ADMIN_SIOR_Encaminhamento_Devedores,
+        Recurso.ADMIN_SIOR_Varredura_Recuperacao_PFE
 
     },
 
