@@ -90,11 +90,6 @@ LICENCA_CACHE_PATH = os.path.join(
     ".rpa_search_data_licenca.json"
 )
 
-LICENCA_REGISTRO_CACHE_PATH = os.path.join(
-    os.path.expanduser("~"),
-    ".rpa_search_data_maquina_registro.json"
-)
-
 
 # ==========================================================
 # SALT USADO NA GERAÇÃO DOS HASHES
@@ -128,12 +123,3 @@ LICENCA_TOLERANCIA_OFFLINE_DIAS = 3
 #
 # Se quiser deixar desativado, mantenha os valores vazios.
 
-URL_REGISTRO_MAQUINA = os.getenv(
-    "RPA_REGISTRO_MAQUINA_URL",
-    "https://script.google.com/macros/s/AKfycby-4_Itip0Wz1a6QObv2FtpD_fenhSA72it5DOpCshbDfvd_ajukhS0SF3YXQXF842K/exec"
-)
-
-REGISTRO_MAQUINA_SECRET = os.getenv(
-    "RPA_REGISTRO_MAQUINA_SECRET",
-    "Hipopotamo@2024"
-)

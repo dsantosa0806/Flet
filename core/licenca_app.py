@@ -1,6 +1,8 @@
 # ==========================================================
 # CORE - LICENCIAMENTO SIMPLES / RENOVAÇÃO BIMESTRAL
+# SEM REGISTRO EM GOOGLE SHEETS
 # ==========================================================
+
 import getpass
 import hashlib
 import hmac
@@ -30,6 +32,10 @@ class LicencaResultado:
     mes_referencia: str = ""
     valido_ate: str = ""
 
+
+# ==========================================================
+# UTILITÁRIOS
+# ==========================================================
 
 def _hoje() -> date:
     return date.today()
@@ -82,8 +88,12 @@ def _salvar_json_local(caminho: str, dados: Dict[str, Any]) -> None:
 
 
 # ==========================================================
-# IDENTIFICAÇÃO DA MÁQUINA
+# IDENTIFICAÇÃO LOCAL DA MÁQUINA
 # ==========================================================
+# Esta identificação NÃO é enviada para lugar nenhum.
+# Ela serve apenas para amarrar o cache local da licença
+# ao computador atual.
+
 def obter_identidade_maquina() -> Dict[str, str]:
     try:
         hostname = platform.node() or socket.gethostname() or ""
@@ -135,8 +145,9 @@ def obter_identidade_maquina() -> Dict[str, str]:
 
 
 # ==========================================================
-# HASH DA SENHA SIMPLES
+# HASH DA SENHA
 # ==========================================================
+
 def gerar_hash_senha(
     senha: str,
     perfil: Optional[str] = None,
@@ -158,9 +169,8 @@ def gerar_hash_senha(
 
 def _obter_hash_esperado(politica: Dict[str, Any]) -> Optional[str]:
     """
-    Lê o hash da senha no formato simples.
+    Formato recomendado no JSON:
 
-    Formato recomendado:
     {
       "senha_hash_sha256": "hash..."
     }
@@ -179,8 +189,9 @@ def _obter_hash_esperado(politica: Dict[str, Any]) -> Optional[str]:
 
 
 # ==========================================================
-# POLÍTICA REMOTA
+# POLÍTICA REMOTA - GITHUB PAGES
 # ==========================================================
+
 def baixar_politica_licenca(timeout: int = 8) -> Dict[str, Any]:
     url = getattr(config, "URL_LICENCA", "")
 
@@ -242,8 +253,9 @@ def _assinatura_cache(
 
 
 # ==========================================================
-# VALIDAÇÕES DA POLÍTICA
+# VALIDAÇÃO DA POLÍTICA
 # ==========================================================
+
 def _validar_regras_politica(
     politica: Dict[str, Any],
     machine_id: str,
@@ -313,49 +325,6 @@ def _validar_regras_politica(
             valido_ate=valido_ate,
         )
 
-    maquinas_bloqueadas = set(
-        str(x).strip()
-        for x in politica.get("maquinas_bloqueadas", [])
-        if str(x).strip()
-    )
-
-    if machine_id in maquinas_bloqueadas:
-        return LicencaResultado(
-            liberado=False,
-            requer_senha=False,
-            titulo="Computador bloqueado",
-            mensagem="Este computador está bloqueado para uso da aplicação.",
-            politica=politica,
-            machine_id=machine_id,
-            mes_referencia=periodo_referencia,
-            valido_ate=valido_ate,
-        )
-
-    controlar_maquinas = bool(
-        politica.get("controlar_maquinas", False)
-    )
-
-    maquinas_liberadas = set(
-        str(x).strip()
-        for x in politica.get("maquinas_liberadas", [])
-        if str(x).strip()
-    )
-
-    if controlar_maquinas and maquinas_liberadas and machine_id not in maquinas_liberadas:
-        return LicencaResultado(
-            liberado=False,
-            requer_senha=False,
-            titulo="Computador não autorizado",
-            mensagem=(
-                "Este computador ainda não está na lista de máquinas autorizadas.\n\n"
-                f"Machine ID: {machine_id}"
-            ),
-            politica=politica,
-            machine_id=machine_id,
-            mes_referencia=periodo_referencia,
-            valido_ate=valido_ate,
-        )
-
     data_validade = _parse_data_iso(valido_ate)
 
     if not data_validade:
@@ -417,6 +386,7 @@ def _validar_regras_politica(
 # ==========================================================
 # CACHE LOCAL
 # ==========================================================
+
 def _cache_local_valido(
     cache: Dict[str, Any],
     machine_id: str,
@@ -547,78 +517,9 @@ def salvar_cache_licenca(
 
 
 # ==========================================================
-# REGISTRO OPCIONAL DA MÁQUINA
-# ==========================================================
-def registrar_maquina_se_configurado(
-    politica: Dict[str, Any],
-    identidade: Dict[str, str],
-) -> None:
-    url = getattr(config, "URL_REGISTRO_MAQUINA", "") or ""
-
-    if not url:
-        return
-
-    periodo_referencia = str(
-        politica.get("periodo_referencia")
-        or politica.get("mes_referencia")
-        or ""
-    ).strip()
-
-    machine_id = identidade.get("machine_id", "")
-    perfil = str(
-        getattr(config, "APP_PROFILE", "")
-    ).upper().strip()
-
-    cache_registro = _ler_json_local(
-        config.LICENCA_REGISTRO_CACHE_PATH
-    )
-
-    chave_atual = f"{machine_id}|{perfil}|{periodo_referencia}|{url}"
-
-    if cache_registro.get("ultima_chave") == chave_atual:
-        return
-
-    payload = {
-        "secret": getattr(config, "REGISTRO_MAQUINA_SECRET", ""),
-        "app": getattr(config, "APP_TITLE_BASE", "RPA Search Data"),
-        "perfil": perfil,
-        "versao": getattr(config, "current_version", ""),
-        "periodo_referencia": periodo_referencia,
-        "machine_id": machine_id,
-        "hostname": identidade.get("hostname", ""),
-        "usuario": identidade.get("usuario", ""),
-        "sistema": identidade.get("sistema", ""),
-        "release": identidade.get("release", ""),
-        "machine": identidade.get("machine", ""),
-        "registrado_em": _agora_iso(),
-    }
-
-    try:
-        response = requests.post(
-            url,
-            json=payload,
-            timeout=6,
-        )
-
-        if response.status_code in (200, 201, 204):
-            _salvar_json_local(
-                config.LICENCA_REGISTRO_CACHE_PATH,
-                {
-                    "ultima_chave": chave_atual,
-                    "machine_id": machine_id,
-                    "perfil": perfil,
-                    "periodo_referencia": periodo_referencia,
-                    "registrado_em": _agora_iso(),
-                },
-            )
-
-    except Exception:
-        pass
-
-
-# ==========================================================
 # FUNÇÕES PÚBLICAS
 # ==========================================================
+
 def verificar_acesso_aplicacao() -> LicencaResultado:
     identidade = obter_identidade_maquina()
     machine_id = identidade["machine_id"]
@@ -627,6 +528,9 @@ def verificar_acesso_aplicacao() -> LicencaResultado:
         config.LICENCA_CACHE_PATH
     )
 
+    # ======================================================
+    # 1. TENTA BAIXAR A POLÍTICA ONLINE DO GITHUB PAGES
+    # ======================================================
     try:
         politica = baixar_politica_licenca()
 
@@ -653,7 +557,10 @@ def verificar_acesso_aplicacao() -> LicencaResultado:
                     or cache.get("mes_referencia")
                     or ""
                 ),
-                valido_ate=str(cache.get("valido_ate") or ""),
+                valido_ate=str(
+                    cache.get("valido_ate")
+                    or ""
+                ),
             )
 
         return LicencaResultado(
@@ -669,6 +576,9 @@ def verificar_acesso_aplicacao() -> LicencaResultado:
             machine_id=machine_id,
         )
 
+    # ======================================================
+    # 2. VALIDA AS REGRAS DA POLÍTICA ONLINE
+    # ======================================================
     regras = _validar_regras_politica(
         politica=politica,
         machine_id=machine_id,
@@ -677,6 +587,10 @@ def verificar_acesso_aplicacao() -> LicencaResultado:
     if not regras.liberado:
         return regras
 
+    # ======================================================
+    # 3. SE O CACHE LOCAL ESTIVER VÁLIDO COM A POLÍTICA ONLINE,
+    #    LIBERA O APP SEM PEDIR SENHA
+    # ======================================================
     if _cache_local_valido(
         cache=cache,
         machine_id=machine_id,
@@ -695,6 +609,9 @@ def verificar_acesso_aplicacao() -> LicencaResultado:
             valido_ate=regras.valido_ate,
         )
 
+    # ======================================================
+    # 4. SE NÃO HOUVER CACHE VÁLIDO, PEDE A SENHA
+    # ======================================================
     return LicencaResultado(
         liberado=False,
         requer_senha=True,
@@ -767,11 +684,6 @@ def validar_senha_renovacao(
     salvar_cache_licenca(
         politica=politica,
         machine_id=machine_id,
-    )
-
-    registrar_maquina_se_configurado(
-        politica=politica,
-        identidade=identidade,
     )
 
     return LicencaResultado(
