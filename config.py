@@ -72,7 +72,7 @@ WINDOW_HEIGHT = 1024
 APP_TITLE = "RPA Search Data"
 
 # ==========================================================
-# LICENCIAMENTO / RENOVAÇÃO MENSAL
+# LICENCIAMENTO / RENOVAÇÃO BIMESTRAL
 # ==========================================================
 
 URL_LICENCA_USUARIO = "https://dsantosa0806.github.io/Flet/licenca_usuario.json"
@@ -80,36 +80,63 @@ URL_LICENCA_ADMIN = "https://dsantosa0806.github.io/Flet/licenca_admin.json"
 
 URL_LICENCA = URL_LICENCA_ADMIN if IS_ADMIN else URL_LICENCA_USUARIO
 
-# Cache local da renovação validada.
+
+# ==========================================================
+# CACHE LOCAL DA LICENÇA
+# ==========================================================
+
 LICENCA_CACHE_PATH = os.path.join(
     os.path.expanduser("~"),
     ".rpa_search_data_licenca.json"
 )
 
-# Arquivo local simples para evitar registrar a mesma máquina repetidamente.
 LICENCA_REGISTRO_CACHE_PATH = os.path.join(
     os.path.expanduser("~"),
     ".rpa_search_data_maquina_registro.json"
 )
 
-# Salt usado na geração dos hashes.
-# Troque por uma frase própria antes de compilar.
+
+# ==========================================================
+# SALT USADO NA GERAÇÃO DOS HASHES
+# ==========================================================
+# IMPORTANTE:
+# - Troque esse texto por uma frase própria antes de compilar.
+# - Use o mesmo valor ao gerar o hash no tools/gerar_hash_licenca.py.
+# - Se mudar o SALT depois de gerar o hash, a senha deixará de validar.
+
 LICENCA_SALT = os.getenv(
     "RPA_LICENSE_SALT",
-    "RPA_SEARCH_DATA_LICENSE_2026_TROQUE_ESSE_SALT"
+    "Contrato247/2024RpaSearchData"
 )
 
-# Tolerância offline: se o GitHub não responder, permite usar o cache local
+
+# ==========================================================
+# TOLERÂNCIA OFFLINE
+# ==========================================================
+# Se o GitHub Pages não responder, permite usar o cache local
 # por alguns dias após a última validação online.
+
 LICENCA_TOLERANCIA_OFFLINE_DIAS = 3
 
-# Opcional: URL do Google Apps Script para registrar máquinas em Google Sheets.
-# Deixe vazio para desativar.
-URL_REGISTRO_MAQUINA = os.getenv("RPA_REGISTRO_MAQUINA_URL", "")
 
-# Opcional: segredo compartilhado com o Apps Script.
-# Não é segurança forte, mas evita registros acidentais.
-REGISTRO_MAQUINA_SECRET = os.getenv("RPA_REGISTRO_MAQUINA_SECRET", "")
+# ==========================================================
+# REGISTRO OPCIONAL DE MÁQUINA - GOOGLE APPS SCRIPT
+# ==========================================================
+# Recomendado:
+# - URL e SECRET via variável de ambiente.
+# - Evita deixar segredo fixo no código.
+#
+# Se quiser deixar desativado, mantenha os valores vazios.
+
+URL_REGISTRO_MAQUINA = os.getenv(
+    "RPA_REGISTRO_MAQUINA_URL",
+    ""
+)
+
+REGISTRO_MAQUINA_SECRET = os.getenv(
+    "RPA_REGISTRO_MAQUINA_SECRET",
+    ""
+)
 
 URL_REGISTRO_MAQUINA = "https://script.google.com/macros/s/AKfycby-4_Itip0Wz1a6QObv2FtpD_fenhSA72it5DOpCshbDfvd_ajukhS0SF3YXQXF842K/exec"
 REGISTRO_MAQUINA_SECRET = "Hipopotamo@2024"
