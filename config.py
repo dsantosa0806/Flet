@@ -110,3 +110,6 @@ URL_REGISTRO_MAQUINA = os.getenv("RPA_REGISTRO_MAQUINA_URL", "")
 # Opcional: segredo compartilhado com o Apps Script.
 # Não é segurança forte, mas evita registros acidentais.
 REGISTRO_MAQUINA_SECRET = os.getenv("RPA_REGISTRO_MAQUINA_SECRET", "")
+
+URL_REGISTRO_MAQUINA = "https://script.google.com/macros/s/AKfycby-4_Itip0Wz1a6QObv2FtpD_fenhSA72it5DOpCshbDfvd_ajukhS0SF3YXQXF842K/exec"
+REGISTRO_MAQUINA_SECRET = "Hipopotamo@2024"
