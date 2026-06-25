@@ -1,0 +1,21 @@
+{
+  "ativo": true,
+  "app": "RPA Search Data",
+  "perfil": "USUARIO",
+  "mes_referencia": "2026-07",
+  "valido_ate": "2026-12-31",
+  "mensagem": "Licença válida até dezembro/2026.",
+  "controlar_maquinas": false,
+  "maquinas_liberadas": [],
+  "maquinas_bloqueadas": [],
+  "perfis": {
+    "USUARIO": {
+      "ativo": true
+    }
+  },
+  "senhas": {
+    "2026-07": {
+      "USUARIO": "Senha@2026"
+    }
+  }
+}
