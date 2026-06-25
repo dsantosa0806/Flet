@@ -5,7 +5,7 @@
   "periodo_referencia": "2026-07_2026-08",
   "valido_ate": "2026-08-31",
   "mensagem": "Licença válida para o bimestre julho/agosto de 2026.",
-  "senha_hash_sha256": "COLE_AQUI_O_HASH_DA_SENHA",
+  "senha_hash_sha256": "944668a003c26ac7f8a90f4e15d1908e9e7aad9c86b5551a42acf0dda76f6ff0",
   "controlar_maquinas": false,
   "maquinas_liberadas": [],
   "maquinas_bloqueadas": [],
