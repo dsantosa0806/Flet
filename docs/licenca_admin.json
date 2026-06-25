@@ -1,7 +1,7 @@
 {
   "ativo": true,
   "app": "RPA Search Data",
-  "perfil": "USUARIO",
+  "perfil": "ADMIN",
   "mes_referencia": "2026-07",
   "valido_ate": "2026-12-31",
   "mensagem": "Licença válida até dezembro/2026.",
@@ -9,13 +9,13 @@
   "maquinas_liberadas": [],
   "maquinas_bloqueadas": [],
   "perfis": {
-    "USUARIO": {
+    "ADMIN": {
       "ativo": true
     }
   },
   "senhas": {
     "2026-07": {
-      "USUARIO": "admin@2026"
+      "ADMIN": "COLE_AQUI_O_HASH_GERADO"
     }
   }
 }
