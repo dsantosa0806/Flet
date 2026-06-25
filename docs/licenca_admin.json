@@ -2,20 +2,16 @@
   "ativo": true,
   "app": "RPA Search Data",
   "perfil": "ADMIN",
-  "mes_referencia": "2026-07",
-  "valido_ate": "2026-12-31",
-  "mensagem": "Licença válida até dezembro/2026.",
+  "periodo_referencia": "2026-07_2026-08",
+  "valido_ate": "2026-08-31",
+  "mensagem": "Licença válida para o bimestre julho/agosto de 2026.",
+  "senha_hash_sha256": "COLE_AQUI_O_HASH_DA_SENHA",
   "controlar_maquinas": false,
   "maquinas_liberadas": [],
   "maquinas_bloqueadas": [],
   "perfis": {
     "ADMIN": {
       "ativo": true
-    }
-  },
-  "senhas": {
-    "2026-07": {
-      "ADMIN": "admin@2026"
     }
   }
 }

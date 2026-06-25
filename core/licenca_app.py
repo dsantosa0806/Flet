@@ -1,5 +1,5 @@
 # ==========================================================
-# CORE - LICENCIAMENTO / RENOVAÇÃO MENSAL DA APLICAÇÃO
+# CORE - LICENCIAMENTO SIMPLES / RENOVAÇÃO BIMESTRAL
 # ==========================================================
 import getpass
 import hashlib
@@ -18,9 +18,6 @@ import requests
 import config
 
 
-# ==========================================================
-# MODELOS
-# ==========================================================
 @dataclass
 class LicencaResultado:
     liberado: bool
@@ -34,9 +31,6 @@ class LicencaResultado:
     valido_ate: str = ""
 
 
-# ==========================================================
-# HELPERS BÁSICOS
-# ==========================================================
 def _hoje() -> date:
     return date.today()
 
@@ -56,13 +50,6 @@ def _sha256(texto: str) -> str:
     return hashlib.sha256(
         texto.encode("utf-8")
     ).hexdigest()
-
-
-def _garantir_pasta_cache() -> None:
-    pasta = os.path.dirname(config.LICENCA_CACHE_PATH)
-
-    if pasta:
-        os.makedirs(pasta, exist_ok=True)
 
 
 def _ler_json_local(caminho: str) -> Dict[str, Any]:
@@ -98,15 +85,6 @@ def _salvar_json_local(caminho: str, dados: Dict[str, Any]) -> None:
 # IDENTIFICAÇÃO DA MÁQUINA
 # ==========================================================
 def obter_identidade_maquina() -> Dict[str, str]:
-    """
-    Gera um identificador estável da máquina.
-
-    Importante:
-    - O machine_id é um hash.
-    - Não depende de um arquivo local.
-    - Evita expor diretamente MAC, usuário e hostname.
-    """
-
     try:
         hostname = platform.node() or socket.gethostname() or ""
     except Exception:
@@ -139,8 +117,8 @@ def obter_identidade_maquina() -> Dict[str, str]:
             sistema,
             release,
             machine,
-            config.APP_PROFILE,
-            config.LICENCA_SALT,
+            str(getattr(config, "APP_PROFILE", "")),
+            str(getattr(config, "LICENCA_SALT", "")),
         ]
     )
 
@@ -157,27 +135,20 @@ def obter_identidade_maquina() -> Dict[str, str]:
 
 
 # ==========================================================
-# HASH DA SENHA MENSAL
+# HASH DA SENHA SIMPLES
 # ==========================================================
-def gerar_hash_senha_mensal(
+def gerar_hash_senha(
     senha: str,
-    mes_referencia: str,
     perfil: Optional[str] = None,
 ) -> str:
-    """
-    Gera o hash da senha mensal.
-
-    O mesmo texto de senha gera hash diferente para USUARIO e ADMIN,
-    porque o perfil entra na composição.
-    """
-
-    perfil = (perfil or config.APP_PROFILE or "").upper()
+    perfil = str(
+        perfil or getattr(config, "APP_PROFILE", "")
+    ).upper().strip()
 
     texto = "|".join(
         [
-            config.LICENCA_SALT,
+            str(getattr(config, "LICENCA_SALT", "")),
             perfil,
-            str(mes_referencia or "").strip(),
             str(senha or "").strip(),
         ]
     )
@@ -187,49 +158,14 @@ def gerar_hash_senha_mensal(
 
 def _obter_hash_esperado(politica: Dict[str, Any]) -> Optional[str]:
     """
-    Aceita diferentes formatos de JSON para facilitar manutenção.
+    Lê o hash da senha no formato simples.
 
     Formato recomendado:
     {
-      "mes_referencia": "2026-07",
-      "senhas": {
-        "2026-07": {
-          "USUARIO": "hash...",
-          "ADMIN": "hash..."
-        }
-      }
+      "senha_hash_sha256": "hash..."
     }
     """
 
-    mes = str(
-        politica.get("mes_referencia") or ""
-    ).strip()
-
-    perfil = str(
-        config.APP_PROFILE or ""
-    ).upper()
-
-    senhas = politica.get("senhas") or {}
-
-    # Formato recomendado: senhas > mes > perfil
-    try:
-        valor = senhas.get(mes, {}).get(perfil)
-
-        if valor:
-            return str(valor).strip().lower()
-    except Exception:
-        pass
-
-    # Formato alternativo: senhas > perfil > mes
-    try:
-        valor = senhas.get(perfil, {}).get(mes)
-
-        if valor:
-            return str(valor).strip().lower()
-    except Exception:
-        pass
-
-    # Formato simples para JSON por perfil
     valor = (
         politica.get("senha_hash_sha256")
         or politica.get("hash_senha_sha256")
@@ -246,24 +182,16 @@ def _obter_hash_esperado(politica: Dict[str, Any]) -> Optional[str]:
 # POLÍTICA REMOTA
 # ==========================================================
 def baixar_politica_licenca(timeout: int = 8) -> Dict[str, Any]:
-    """
-    Baixa o JSON de licença do GitHub Pages.
-
-    Usa parâmetro cache-buster para reduzir chance de cache antigo.
-    """
-
     url = getattr(config, "URL_LICENCA", "")
 
     if not url:
         raise RuntimeError("URL_LICENCA não configurada no config.py.")
 
-    params = {
-        "_": int(datetime.now().timestamp())
-    }
-
     response = requests.get(
         url,
-        params=params,
+        params={
+            "_": int(datetime.now().timestamp())
+        },
         timeout=timeout,
         headers={
             "Accept": "application/json",
@@ -295,16 +223,16 @@ def _hash_politica(politica: Dict[str, Any]) -> str:
 def _assinatura_cache(
     machine_id: str,
     perfil: str,
-    mes_referencia: str,
+    periodo_referencia: str,
     valido_ate: str,
     hash_politica: str,
 ) -> str:
     texto = "|".join(
         [
-            config.LICENCA_SALT,
+            str(getattr(config, "LICENCA_SALT", "")),
             machine_id,
             perfil,
-            mes_referencia,
+            periodo_referencia,
             valido_ate,
             hash_politica,
         ]
@@ -320,7 +248,19 @@ def _validar_regras_politica(
     politica: Dict[str, Any],
     machine_id: str,
 ) -> LicencaResultado:
-    perfil = str(config.APP_PROFILE or "").upper()
+    perfil = str(
+        getattr(config, "APP_PROFILE", "")
+    ).upper().strip()
+
+    periodo_referencia = str(
+        politica.get("periodo_referencia")
+        or politica.get("mes_referencia")
+        or ""
+    ).strip()
+
+    valido_ate = str(
+        politica.get("valido_ate") or ""
+    ).strip()
 
     if not politica.get("ativo", True):
         return LicencaResultado(
@@ -333,6 +273,27 @@ def _validar_regras_politica(
             ),
             politica=politica,
             machine_id=machine_id,
+            mes_referencia=periodo_referencia,
+            valido_ate=valido_ate,
+        )
+
+    perfil_json = str(
+        politica.get("perfil") or perfil
+    ).upper().strip()
+
+    if perfil_json and perfil_json != perfil:
+        return LicencaResultado(
+            liberado=False,
+            requer_senha=False,
+            titulo="Perfil incompatível",
+            mensagem=(
+                f"O JSON de licença é do perfil {perfil_json}, "
+                f"mas esta aplicação está no perfil {perfil}."
+            ),
+            politica=politica,
+            machine_id=machine_id,
+            mes_referencia=periodo_referencia,
+            valido_ate=valido_ate,
         )
 
     perfil_cfg = (
@@ -348,6 +309,8 @@ def _validar_regras_politica(
             mensagem=f"O perfil {perfil} está desativado na política de licença.",
             politica=politica,
             machine_id=machine_id,
+            mes_referencia=periodo_referencia,
+            valido_ate=valido_ate,
         )
 
     maquinas_bloqueadas = set(
@@ -364,6 +327,8 @@ def _validar_regras_politica(
             mensagem="Este computador está bloqueado para uso da aplicação.",
             politica=politica,
             machine_id=machine_id,
+            mes_referencia=periodo_referencia,
+            valido_ate=valido_ate,
         )
 
     controlar_maquinas = bool(
@@ -382,32 +347,16 @@ def _validar_regras_politica(
             requer_senha=False,
             titulo="Computador não autorizado",
             mensagem=(
-                "Este computador ainda não está na lista de máquinas autorizadas. "
-                f"Machine ID: {machine_id[:16]}"
+                "Este computador ainda não está na lista de máquinas autorizadas.\n\n"
+                f"Machine ID: {machine_id}"
             ),
             politica=politica,
             machine_id=machine_id,
+            mes_referencia=periodo_referencia,
+            valido_ate=valido_ate,
         )
-
-    mes_referencia = str(
-        politica.get("mes_referencia") or ""
-    ).strip()
-
-    valido_ate = str(
-        politica.get("valido_ate") or ""
-    ).strip()
 
     data_validade = _parse_data_iso(valido_ate)
-
-    if not mes_referencia:
-        return LicencaResultado(
-            liberado=False,
-            requer_senha=False,
-            titulo="Licença mal configurada",
-            mensagem="O JSON de licença não possui mes_referencia.",
-            politica=politica,
-            machine_id=machine_id,
-        )
 
     if not data_validade:
         return LicencaResultado(
@@ -417,20 +366,22 @@ def _validar_regras_politica(
             mensagem="O JSON de licença não possui valido_ate em formato YYYY-MM-DD.",
             politica=politica,
             machine_id=machine_id,
+            mes_referencia=periodo_referencia,
+            valido_ate=valido_ate,
         )
 
     if _hoje() > data_validade:
         return LicencaResultado(
             liberado=False,
             requer_senha=False,
-            titulo="Licença remota vencida",
+            titulo="Licença vencida",
             mensagem=(
-                f"A licença publicada venceu em {valido_ate}. "
-                "Atualize o JSON no GitHub com a nova competência mensal."
+                f"A licença venceu em {valido_ate}. "
+                "Atualize o JSON no GitHub Pages com uma nova senha e uma nova validade."
             ),
             politica=politica,
             machine_id=machine_id,
-            mes_referencia=mes_referencia,
+            mes_referencia=periodo_referencia,
             valido_ate=valido_ate,
         )
 
@@ -441,10 +392,13 @@ def _validar_regras_politica(
             liberado=False,
             requer_senha=False,
             titulo="Licença mal configurada",
-            mensagem="O JSON de licença não possui hash de senha válido.",
+            mensagem=(
+                "O JSON de licença não possui senha_hash_sha256.\n\n"
+                "Gere o hash da senha bimestral e publique no JSON."
+            ),
             politica=politica,
             machine_id=machine_id,
-            mes_referencia=mes_referencia,
+            mes_referencia=periodo_referencia,
             valido_ate=valido_ate,
         )
 
@@ -455,7 +409,7 @@ def _validar_regras_politica(
         mensagem="Política remota validada.",
         politica=politica,
         machine_id=machine_id,
-        mes_referencia=mes_referencia,
+        mes_referencia=periodo_referencia,
         valido_ate=valido_ate,
     )
 
@@ -472,7 +426,9 @@ def _cache_local_valido(
     if not cache:
         return False
 
-    perfil = str(config.APP_PROFILE or "").upper()
+    perfil = str(
+        getattr(config, "APP_PROFILE", "")
+    ).upper().strip()
 
     if cache.get("machine_id") != machine_id:
         return False
@@ -480,13 +436,23 @@ def _cache_local_valido(
     if str(cache.get("perfil", "")).upper() != perfil:
         return False
 
-    mes_referencia = str(cache.get("mes_referencia") or "").strip()
-    valido_ate = str(cache.get("valido_ate") or "").strip()
-    hash_politica = str(cache.get("hash_politica") or "").strip()
+    periodo_referencia = str(
+        cache.get("periodo_referencia")
+        or cache.get("mes_referencia")
+        or ""
+    ).strip()
+
+    valido_ate = str(
+        cache.get("valido_ate") or ""
+    ).strip()
+
+    hash_politica = str(
+        cache.get("hash_politica") or ""
+    ).strip()
 
     data_validade = _parse_data_iso(valido_ate)
 
-    if not mes_referencia or not data_validade:
+    if not data_validade:
         return False
 
     if _hoje() > data_validade:
@@ -501,7 +467,7 @@ def _cache_local_valido(
     assinatura_esperada = _assinatura_cache(
         machine_id=machine_id,
         perfil=perfil,
-        mes_referencia=mes_referencia,
+        periodo_referencia=periodo_referencia,
         valido_ate=valido_ate,
         hash_politica=hash_politica,
     )
@@ -541,25 +507,34 @@ def salvar_cache_licenca(
     politica: Dict[str, Any],
     machine_id: str,
 ) -> None:
-    _garantir_pasta_cache()
+    perfil = str(
+        getattr(config, "APP_PROFILE", "")
+    ).upper().strip()
 
-    perfil = str(config.APP_PROFILE or "").upper()
-    mes_referencia = str(politica.get("mes_referencia") or "").strip()
-    valido_ate = str(politica.get("valido_ate") or "").strip()
+    periodo_referencia = str(
+        politica.get("periodo_referencia")
+        or politica.get("mes_referencia")
+        or ""
+    ).strip()
+
+    valido_ate = str(
+        politica.get("valido_ate") or ""
+    ).strip()
+
     hash_politica = _hash_politica(politica)
 
     cache = {
         "app": getattr(config, "APP_TITLE_BASE", "RPA Search Data"),
         "perfil": perfil,
         "machine_id": machine_id,
-        "mes_referencia": mes_referencia,
+        "periodo_referencia": periodo_referencia,
         "valido_ate": valido_ate,
         "hash_politica": hash_politica,
         "validado_em": _agora_iso(),
         "assinatura": _assinatura_cache(
             machine_id=machine_id,
             perfil=perfil,
-            mes_referencia=mes_referencia,
+            periodo_referencia=periodo_referencia,
             valido_ate=valido_ate,
             hash_politica=hash_politica,
         ),
@@ -578,31 +553,27 @@ def registrar_maquina_se_configurado(
     politica: Dict[str, Any],
     identidade: Dict[str, str],
 ) -> None:
-    """
-    Registro opcional via Google Apps Script.
-
-    Evita repetir envio:
-    - não envia se URL_REGISTRO_MAQUINA estiver vazia;
-    - não envia se já registrou a mesma máquina/perfil/mês.
-    """
-
     url = getattr(config, "URL_REGISTRO_MAQUINA", "") or ""
 
     if not url:
         return
 
-    mes_referencia = str(
-        politica.get("mes_referencia") or ""
+    periodo_referencia = str(
+        politica.get("periodo_referencia")
+        or politica.get("mes_referencia")
+        or ""
     ).strip()
 
     machine_id = identidade.get("machine_id", "")
-    perfil = str(config.APP_PROFILE or "").upper()
+    perfil = str(
+        getattr(config, "APP_PROFILE", "")
+    ).upper().strip()
 
     cache_registro = _ler_json_local(
         config.LICENCA_REGISTRO_CACHE_PATH
     )
 
-    chave_atual = f"{machine_id}|{perfil}|{mes_referencia}|{url}"
+    chave_atual = f"{machine_id}|{perfil}|{periodo_referencia}|{url}"
 
     if cache_registro.get("ultima_chave") == chave_atual:
         return
@@ -612,7 +583,7 @@ def registrar_maquina_se_configurado(
         "app": getattr(config, "APP_TITLE_BASE", "RPA Search Data"),
         "perfil": perfil,
         "versao": getattr(config, "current_version", ""),
-        "mes_referencia": mes_referencia,
+        "periodo_referencia": periodo_referencia,
         "machine_id": machine_id,
         "hostname": identidade.get("hostname", ""),
         "usuario": identidade.get("usuario", ""),
@@ -636,13 +607,12 @@ def registrar_maquina_se_configurado(
                     "ultima_chave": chave_atual,
                     "machine_id": machine_id,
                     "perfil": perfil,
-                    "mes_referencia": mes_referencia,
+                    "periodo_referencia": periodo_referencia,
                     "registrado_em": _agora_iso(),
                 },
             )
 
     except Exception:
-        # Registro de máquina não deve impedir a abertura do app.
         pass
 
 
@@ -678,7 +648,11 @@ def verificar_acesso_aplicacao() -> LicencaResultado:
                 origem="cache_offline",
                 politica={},
                 machine_id=machine_id,
-                mes_referencia=str(cache.get("mes_referencia") or ""),
+                mes_referencia=str(
+                    cache.get("periodo_referencia")
+                    or cache.get("mes_referencia")
+                    or ""
+                ),
                 valido_ate=str(cache.get("valido_ate") or ""),
             )
 
@@ -726,8 +700,9 @@ def verificar_acesso_aplicacao() -> LicencaResultado:
         requer_senha=True,
         titulo="Renovação necessária",
         mensagem=(
-            f"Informe a senha de renovação mensal para {regras.mes_referencia}.\n"
-            f"Validade da licença: {regras.valido_ate}."
+            f"Informe a senha vigente da aplicação.\n\n"
+            f"Período: {regras.mes_referencia or 'não informado'}\n"
+            f"Validade: {regras.valido_ate}"
         ),
         origem="senha_necessaria",
         politica=politica,
@@ -768,10 +743,9 @@ def validar_senha_renovacao(
 
     hash_esperado = _obter_hash_esperado(politica)
 
-    hash_informado = gerar_hash_senha_mensal(
+    hash_informado = gerar_hash_senha(
         senha=senha,
-        mes_referencia=regras.mes_referencia,
-        perfil=config.APP_PROFILE,
+        perfil=getattr(config, "APP_PROFILE", ""),
     )
 
     if not hmac.compare_digest(
@@ -782,7 +756,7 @@ def validar_senha_renovacao(
             liberado=False,
             requer_senha=True,
             titulo="Senha inválida",
-            mensagem="A senha informada não corresponde à renovação mensal atual.",
+            mensagem="A senha informada não corresponde à senha vigente da aplicação.",
             origem="senha_invalida",
             politica=politica,
             machine_id=machine_id,
