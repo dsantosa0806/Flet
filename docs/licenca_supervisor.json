@@ -1,11 +1,11 @@
 {
   "ativo": true,
   "app": "RPA Search Data",
-  "perfil": "USUARIO",
+  "perfil": "SUPERVISOR",
   "periodo_referencia": "2026-07_2026-08",
   "valido_ate": "2026-08-31",
   "mensagem": "Licença válida para o bimestre julho/agosto de 2026.",
-  "senha_hash_sha256": "944668a003c26ac7f8a90f4e15d1908e9e7aad9c86b5551a42acf0dda76f6ff0",
+  "senha_hash_sha256": "0fa4148132ae51f2a5ae72f50d302f308af8a699261134260db513f827796dcc",
   "controlar_maquinas": false,
   "maquinas_liberadas": [],
   "maquinas_bloqueadas": [],

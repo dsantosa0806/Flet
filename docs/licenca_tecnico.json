@@ -1,0 +1,17 @@
+{
+  "ativo": true,
+  "app": "RPA Search Data",
+  "perfil": "TECNICO",
+  "periodo_referencia": "2026-07_2026-08",
+  "valido_ate": "2026-08-31",
+  "mensagem": "Licença válida para o bimestre julho/agosto de 2026.",
+  "senha_hash_sha256": "89ad108e96e6b20624b667300260312ecc09546c1a90c63070b1c73c4a5bffb0",
+  "controlar_maquinas": false,
+  "maquinas_liberadas": [],
+  "maquinas_bloqueadas": [],
+  "perfis": {
+    "USUARIO": {
+      "ativo": true
+    }
+  }
+}
