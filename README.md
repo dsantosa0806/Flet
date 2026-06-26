@@ -48,8 +48,35 @@
    
 4. **Gerar o executável**
     ```bash
-    pyinstaller --noconfirm --onefile --windowed --name "RPA" --icon "images\\iconApp.ico" --add-data "config.py;." --version-file "version.txt" app.py
+    ADMIN
+   
+   pyinstaller --noconfirm --onefile --windowed --clean ^
+   --name "RPA v1.4.1 Admin" ^
+   --icon "images\iconApp.ico" ^
+   --add-data "config.py;." ^
+   --add-data "images;images" ^
+   --version-file "version.txt" ^
+   main_admin.py
 
+   SUPERVISÃO
+   
+   pyinstaller --noconfirm --onefile --windowed --clean ^
+   --name "RPA v1.4.1 Supervisao" ^
+   --icon "images\iconApp.ico" ^
+   --add-data "config.py;." ^
+   --add-data "images;images" ^
+   --version-file "version.txt" ^
+   main_supervisao.py
+   
+   TÉCNICO
+   
+   pyinstaller --noconfirm --onefile --windowed --clean ^
+   --name "RPA v1.4.1 Tecnico" ^
+   --icon "images\iconApp.ico" ^
+   --add-data "config.py;." ^
+   --add-data "images;images" ^
+   --version-file "version.txt" ^
+   main_tecnico.py
    
 
 ## 🖼s️ Interface da Aplicação

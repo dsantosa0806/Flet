@@ -8,7 +8,18 @@ from views.aba_consulta_sior_proprietario import aba_consulta_sior_proprietario
 from views.aba_download import aba_download
 from views.aba_sobre import aba_sobre
 from views.popup_login_sior_manual import aba_login_manual_sior
-from config import DEFAULT_FONT_SIZE, HEADING_FONT_SIZE, WINDOW_WIDTH, WINDOW_HEIGHT, APP_TITLE, IS_ADMIN, APP_PROFILE
+from config import (
+    DEFAULT_FONT_SIZE,
+    HEADING_FONT_SIZE,
+    WINDOW_WIDTH,
+    WINDOW_HEIGHT,
+    APP_TITLE,
+    APP_PROFILE,
+    ROTULO_PERFIL,
+    IS_ADMIN,
+    IS_SUPERVISAO,
+    IS_TECNICO,
+)
 from views.aba_inicial import aba_inicial
 from views.aba_consulta_sior_cobranca_devedor import aba_consulta_auto_cobranca_devedor
 from views.aba_copia_pa import aba_copia_pa
@@ -199,14 +210,23 @@ def main(page: ft.Page):
             selectable=True
         )
 
+        def cor_badge_perfil():
+            if IS_ADMIN:
+                return ft.Colors.RED_600
+
+            if IS_SUPERVISAO:
+                return ft.Colors.BLUE_600
+
+            return ft.Colors.GREEN_700
+
         txt_perfil = ft.Container(
             content=ft.Text(
-                f"Perfil: {APP_PROFILE}",
+                f"Perfil: {ROTULO_PERFIL}",
                 size=10,
                 weight="bold",
                 color="white"
             ),
-            bgcolor=ft.Colors.RED_600 if IS_ADMIN else ft.Colors.BLUE_600,
+            bgcolor=cor_badge_perfil(),
             padding=ft.padding.symmetric(horizontal=10, vertical=4),
             border_radius=20
         )
@@ -250,7 +270,7 @@ def main(page: ft.Page):
             if recurso and not tem_permissao(perfil_atual, recurso):
                 conteudo_abas.content = acesso_negado()
                 page.snack_bar = ft.SnackBar(
-                    ft.Text("🔒 Acesso restrito ao perfil administrador."),
+                    ft.Text("🔒 Seu perfil não possui permissão para esta funcionalidade."),
                     bgcolor=ft.Colors.RED_400
                 )
                 page.snack_bar.open = True
@@ -938,7 +958,8 @@ def main(page: ft.Page):
                             "Acompanhamento Painel Supervisor",
                             ft.Icons.DASHBOARD_OUTLINED,
                             "SIOR_Consulta_Painel_Super",
-                            largura=260
+                            largura=260,
+                            permitido=not IS_TECNICO
                         ),
 
                     ]),
@@ -950,7 +971,7 @@ def main(page: ft.Page):
                     ft.Icons.ACCOUNT_TREE_OUTLINED,
                     "SIOR_Distribuicao_Processos",
                     largura=280,
-                    permitido=True
+                    permitido=not IS_TECNICO
                 ),
 
                 item_menu(
@@ -987,7 +1008,7 @@ def main(page: ft.Page):
                     ft.Icons.ASSIGNMENT_OUTLINED,
                     "ADMIN_Sapiens_Tarefas",
                     largura=280,
-                    permitido=True
+                    permitido=not IS_TECNICO
                 ),
 
                 # Caso queira reativar futuramente:

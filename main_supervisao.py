@@ -1,7 +1,6 @@
 import os
 import flet as ft
 
-# Legado: antigo USUARIO agora é SUPERVISAO.
 os.environ["SIOR_APP_PROFILE"] = "SUPERVISAO"
 
 from app import main

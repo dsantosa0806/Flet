@@ -8,11 +8,47 @@ import os
 
 APP_PROFILE = os.getenv("SIOR_APP_PROFILE", "USUARIO").upper()
 
-PERFIL_USUARIO = "USUARIO"
+# ==========================================================
+# PERFIL / CANAL DA APLICAÇÃO
+# ==========================================================
+
 PERFIL_ADMIN = "ADMIN"
+PERFIL_SUPERVISAO = "SUPERVISAO"
+PERFIL_TECNICO = "TECNICO"
+
+# Mantido apenas por compatibilidade com builds antigos.
+# Daqui para frente, USUARIO passa a ser SUPERVISAO.
+PERFIL_USUARIO = PERFIL_SUPERVISAO
+
+PERFIS_VALIDOS = {
+    PERFIL_ADMIN,
+    PERFIL_SUPERVISAO,
+    PERFIL_TECNICO,
+}
+
+MAPA_PERFIS_LEGADOS = {
+    "USUARIO": PERFIL_SUPERVISAO,
+}
+
+APP_PROFILE_RAW = os.getenv(
+    "SIOR_APP_PROFILE",
+    PERFIL_TECNICO
+).upper().strip()
+
+APP_PROFILE = MAPA_PERFIS_LEGADOS.get(
+    APP_PROFILE_RAW,
+    APP_PROFILE_RAW
+)
+
+if APP_PROFILE not in PERFIS_VALIDOS:
+    APP_PROFILE = PERFIL_TECNICO
 
 IS_ADMIN = APP_PROFILE == PERFIL_ADMIN
-IS_USUARIO = APP_PROFILE == PERFIL_USUARIO
+IS_SUPERVISAO = APP_PROFILE == PERFIL_SUPERVISAO
+IS_TECNICO = APP_PROFILE == PERFIL_TECNICO
+
+# Compatibilidade com códigos antigos que ainda usam IS_USUARIO.
+IS_USUARIO = IS_SUPERVISAO
 
 
 # ==========================================================
@@ -21,20 +57,43 @@ IS_USUARIO = APP_PROFILE == PERFIL_USUARIO
 
 BASE_VERSION = "1.4.1"
 
-VERSAO_USUARIO = f"{BASE_VERSION}"
 VERSAO_ADMIN = f"{BASE_VERSION}-admin"
+VERSAO_SUPERVISAO = f"{BASE_VERSION}-supervisao"
+VERSAO_TECNICO = f"{BASE_VERSION}-tecnico"
 
-current_version = VERSAO_ADMIN if IS_ADMIN else VERSAO_USUARIO
+VERSOES_POR_PERFIL = {
+    PERFIL_ADMIN: VERSAO_ADMIN,
+    PERFIL_SUPERVISAO: VERSAO_SUPERVISAO,
+    PERFIL_TECNICO: VERSAO_TECNICO,
+}
+
+current_version = VERSOES_POR_PERFIL.get(
+    APP_PROFILE,
+    VERSAO_TECNICO
+)
 
 
 # ==========================================================
 # URLS DE ATUALIZAÇÃO POR PERFIL
 # ==========================================================
 
-URL_VERSAO_USUARIO = "https://dsantosa0806.github.io/Flet/version_usuario.json"
 URL_VERSAO_ADMIN = "https://dsantosa0806.github.io/Flet/version_admin.json"
+URL_VERSAO_SUPERVISAO = "https://dsantosa0806.github.io/Flet/version_supervisao.json"
+URL_VERSAO_TECNICO = "https://dsantosa0806.github.io/Flet/version_tecnico.json"
 
-URL_VERSAO = URL_VERSAO_ADMIN if IS_ADMIN else URL_VERSAO_USUARIO
+# Compatibilidade com nome antigo
+URL_VERSAO_USUARIO = URL_VERSAO_SUPERVISAO
+
+URLS_VERSAO_POR_PERFIL = {
+    PERFIL_ADMIN: URL_VERSAO_ADMIN,
+    PERFIL_SUPERVISAO: URL_VERSAO_SUPERVISAO,
+    PERFIL_TECNICO: URL_VERSAO_TECNICO,
+}
+
+URL_VERSAO = URLS_VERSAO_POR_PERFIL.get(
+    APP_PROFILE,
+    URL_VERSAO_TECNICO
+)
 
 
 # ==========================================================
@@ -43,11 +102,13 @@ URL_VERSAO = URL_VERSAO_ADMIN if IS_ADMIN else URL_VERSAO_USUARIO
 
 APP_TITLE_BASE = "RPA Search Data"
 
-APP_TITLE = (
-    f"{APP_TITLE_BASE} - Admin"
-    if IS_ADMIN
-    else f"{APP_TITLE_BASE} - Usuário"
-)
+ROTULO_PERFIL = {
+    PERFIL_ADMIN: "Admin",
+    PERFIL_SUPERVISAO: "Supervisão",
+    PERFIL_TECNICO: "Técnico",
+}.get(APP_PROFILE, "Técnico")
+
+APP_TITLE = f"{APP_TITLE_BASE} - {ROTULO_PERFIL}"
 
 diretorio = r'C:\\'
 pasta_arquivos = r'C:\Extracao-Relatorio-Financeiro-Processo-Arquivos'
@@ -69,16 +130,28 @@ HEADING_FONT_SIZE = 16
 PAGE_TITLE_SIZE = 10
 WINDOW_WIDTH = 1200
 WINDOW_HEIGHT = 1024
-APP_TITLE = "RPA Search Data"
 
 # ==========================================================
 # LICENCIAMENTO / RENOVAÇÃO BIMESTRAL
 # ==========================================================
 
-URL_LICENCA_USUARIO = "https://dsantosa0806.github.io/Flet/licenca_usuario.json"
 URL_LICENCA_ADMIN = "https://dsantosa0806.github.io/Flet/licenca_admin.json"
+URL_LICENCA_SUPERVISAO = "https://dsantosa0806.github.io/Flet/licenca_supervisao.json"
+URL_LICENCA_TECNICO = "https://dsantosa0806.github.io/Flet/licenca_tecnico.json"
 
-URL_LICENCA = URL_LICENCA_ADMIN if IS_ADMIN else URL_LICENCA_USUARIO
+# Compatibilidade com nome antigo
+URL_LICENCA_USUARIO = URL_LICENCA_SUPERVISAO
+
+URLS_LICENCA_POR_PERFIL = {
+    PERFIL_ADMIN: URL_LICENCA_ADMIN,
+    PERFIL_SUPERVISAO: URL_LICENCA_SUPERVISAO,
+    PERFIL_TECNICO: URL_LICENCA_TECNICO,
+}
+
+URL_LICENCA = URLS_LICENCA_POR_PERFIL.get(
+    APP_PROFILE,
+    URL_LICENCA_TECNICO
+)
 
 
 # ==========================================================
