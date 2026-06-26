@@ -10,7 +10,7 @@
   "maquinas_liberadas": [],
   "maquinas_bloqueadas": [],
   "perfis": {
-    "USUARIO": {
+    "SUPERVISAO": {
       "ativo": true
     }
   }
