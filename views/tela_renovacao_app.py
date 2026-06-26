@@ -1,6 +1,8 @@
 # ==========================================================
 # VIEW - TELA DE RENOVAÇÃO DA APLICAÇÃO
 # ==========================================================
+import threading
+
 import config
 
 from core.licenca_app import (
@@ -9,7 +11,13 @@ from core.licenca_app import (
 )
 
 
+# ==========================================================
+# HELPERS DE FECHAMENTO
+# ==========================================================
 def _fechar_page(page):
+    """
+    Fecha a janela de forma compatível com versões diferentes do Flet.
+    """
     try:
         page.window_prevent_close = False
     except Exception:
@@ -31,6 +39,64 @@ def _fechar_page(page):
         return
     except Exception:
         pass
+
+
+def _exibir_aviso_fechamento(ft, page):
+    """
+    Exibe o mesmo aviso azul padrão utilizado no fechamento da aplicação.
+
+    Primeiro tenta usar o helper global mostrar_alerta().
+    Caso ele não esteja disponível nesse momento da tela de renovação,
+    usa um SnackBar azul como fallback.
+    """
+    mensagem = "Estamos fechando a aplicação. Aguarde um instante..."
+
+    try:
+        from utils.popups import mostrar_alerta
+
+        mostrar_alerta(
+            ft,
+            page,
+            "Aplicação em encerramento",
+            mensagem,
+            tipo="info",
+            duracao=0.6,
+        )
+        return
+
+    except Exception as ex:
+        try:
+            print(f"Erro ao exibir popup de encerramento: {ex}")
+        except Exception:
+            pass
+
+    # Fallback para garantir que o usuário veja o aviso azul.
+    try:
+        page.snack_bar = ft.SnackBar(
+            ft.Text(mensagem),
+            bgcolor=ft.Colors.BLUE_700,
+        )
+        page.snack_bar.open = True
+        page.update()
+    except Exception:
+        pass
+
+
+def _fechar_page_com_aviso(ft, page):
+    """
+    Exibe o aviso azul e fecha a aplicação logo em seguida.
+
+    O fechamento é feito por Timer para dar tempo do Flet renderizar
+    a mensagem antes da janela ser destruída.
+    """
+    _exibir_aviso_fechamento(ft, page)
+
+    def fechar_definitivamente():
+        _fechar_page(page)
+
+    timer = threading.Timer(0.7, fechar_definitivamente)
+    timer.daemon = True
+    timer.start()
 
 
 def exigir_renovacao_antes_de_abrir(ft, page, montar_aplicacao_callback):
@@ -161,10 +227,32 @@ def exigir_renovacao_antes_de_abrir(ft, page, montar_aplicacao_callback):
             montar_aplicacao_callback=montar_aplicacao_callback,
         )
 
+    def fechar_com_aviso(e=None):
+        """
+        Handler do botão Fechar da tela de renovação.
+
+        Além do popup/snackbar azul padrão, também atualiza o texto do card
+        para deixar a mensagem visível dentro da própria tela.
+        """
+        try:
+            btn_sair.disabled = True
+            btn_tentar_novamente.disabled = True
+            btn_validar.disabled = True
+            progress.visible = True
+
+            txt_status.value = "Estamos fechando a aplicação. Aguarde um instante..."
+            txt_status.color = ft.Colors.BLUE_700
+
+            page.update()
+        except Exception:
+            pass
+
+        _fechar_page_com_aviso(ft, page)
+
     input_senha.on_submit = validar
     btn_validar.on_click = validar
     btn_tentar_novamente.on_click = tentar_novamente
-    btn_sair.on_click = lambda e: _fechar_page(page)
+    btn_sair.on_click = fechar_com_aviso
 
     card = ft.Container(
         content=ft.Column(

@@ -3,6 +3,7 @@
 # Disponível para todos os usuários
 # ==========================================================
 import os
+import json
 import threading
 import traceback
 from datetime import datetime
@@ -37,6 +38,99 @@ from requests_data.requisicoes_sior_distribuicao import (
 
 from utils.open_dir_downloads import abrir_pasta_exportacao
 from utils.popups import mostrar_alerta
+
+
+# ==========================================================
+# CACHE DE PREFERÊNCIA DA EQUIPE DO SUPERVISOR
+# ==========================================================
+CACHE_PATH_SUPERVISOR = getattr(
+    config,
+    "CACHE_PATH_SUPERVISOR",
+    os.path.join(os.path.expanduser("~"), ".sior_supervisor_cache.json"),
+)
+
+OPCOES_EQUIPES_DISTRIBUICAO = [
+    ("2", "Equipe Cobrança 1"),
+    ("1", "Equipe Cobrança 2"),
+    ("3", "Equipe Cobrança 3"),
+    ("4", "Equipe Cobrança 4"),
+    ("5", "Equipe Cobrança 5"),
+    ("6", "Equipe Cobrança 6"),
+]
+
+
+def _normalizar_equipe_id(equipe_id) -> str:
+    """Normaliza o código da equipe antes de ler/salvar a preferência."""
+    return str(equipe_id or "").strip()
+
+
+def carregar_preferencias() -> str | None:
+    """
+    Lê a última equipe usada no cache compartilhado com a aba Painel Supervisor.
+
+    Estrutura esperada:
+        {"ultima_equipe": "1"}
+    """
+    try:
+        if not os.path.exists(CACHE_PATH_SUPERVISOR):
+            return None
+
+        with open(CACHE_PATH_SUPERVISOR, "r", encoding="utf-8") as f:
+            dados = json.load(f)
+
+        equipe_id = _normalizar_equipe_id(
+            dados.get("ultima_equipe")
+            if isinstance(dados, dict)
+            else None
+        )
+
+        return equipe_id or None
+
+    except Exception as ex:
+        print(f"Erro ao carregar preferência de equipe SIOR: {ex}")
+        return None
+
+
+def salvar_preferencias(equipe_id: str) -> bool:
+    """
+    Salva a última equipe carregada no cache compartilhado do SIOR.
+
+    Preserva outras chaves existentes no JSON, caso sejam adicionadas futuramente.
+    """
+    equipe_id = _normalizar_equipe_id(equipe_id)
+
+    if not equipe_id:
+        return False
+
+    try:
+        dados = {}
+
+        if os.path.exists(CACHE_PATH_SUPERVISOR):
+            try:
+                with open(CACHE_PATH_SUPERVISOR, "r", encoding="utf-8") as f:
+                    dados_lidos = json.load(f)
+
+                if isinstance(dados_lidos, dict):
+                    dados = dados_lidos
+
+            except Exception:
+                dados = {}
+
+        dados["ultima_equipe"] = equipe_id
+
+        pasta_cache = os.path.dirname(CACHE_PATH_SUPERVISOR)
+
+        if pasta_cache:
+            os.makedirs(pasta_cache, exist_ok=True)
+
+        with open(CACHE_PATH_SUPERVISOR, "w", encoding="utf-8") as f:
+            json.dump(dados, f, ensure_ascii=False, indent=4)
+
+        return True
+
+    except Exception as ex:
+        print(f"Erro ao salvar preferência de equipe SIOR: {ex}")
+        return False
 
 
 # ==========================================================
@@ -111,18 +205,36 @@ def aba_sior_distribuicao_processos(
     # ======================================================
     # CONTROLES PRINCIPAIS
     # ======================================================
+    equipe_preferida = carregar_preferencias()
+
+    opcoes_equipes = [
+        ft.dropdown.Option(
+            key=key,
+            text=text,
+        )
+        for key, text in OPCOES_EQUIPES_DISTRIBUICAO
+    ]
+
+    equipes_cadastradas = {
+        key
+        for key, _ in OPCOES_EQUIPES_DISTRIBUICAO
+    }
+
+    # Caso o cache tenha uma equipe futura ainda não cadastrada na lista fixa,
+    # ela é adicionada dinamicamente para que o pré-carregamento não falhe.
+    if equipe_preferida and equipe_preferida not in equipes_cadastradas:
+        opcoes_equipes.append(
+            ft.dropdown.Option(
+                key=equipe_preferida,
+                text=f"Equipe {equipe_preferida}",
+            )
+        )
+
     dropdown_equipes = ft.Dropdown(
         label="Equipe do supervisor",
-        options=[
-            ft.dropdown.Option(key="2", text="Equipe Cobrança 1"),
-            ft.dropdown.Option(key="1", text="Equipe Cobrança 2"),
-            ft.dropdown.Option(key="3", text="Equipe Cobrança 3"),
-            ft.dropdown.Option(key="4", text="Equipe Cobrança 4"),
-            ft.dropdown.Option(key="5", text="Equipe Cobrança 5"),
-            ft.dropdown.Option(key="6", text="Equipe Cobrança 6"),
-        ],
+        options=opcoes_equipes,
         width=260,
-        value="2",
+        value=equipe_preferida or "2",
         label_style=ft.TextStyle(
             size=UI_FONT,
         ),
@@ -130,6 +242,16 @@ def aba_sior_distribuicao_processos(
             size=UI_FONT,
         ),
     )
+
+    # Em versões do Flet que suportam dropdown editável, permite digitar
+    # outros códigos de equipe sem perder a lista pré-cadastrada.
+    # Em versões antigas, estas propriedades são simplesmente ignoradas.
+    try:
+        dropdown_equipes.editable = True
+        dropdown_equipes.enable_filter = True
+        dropdown_equipes.enable_search = True
+    except Exception:
+        pass
 
     input_meta_padrao = ft.TextField(
         label="Quantidade a distribuir",
@@ -894,6 +1016,25 @@ def aba_sior_distribuicao_processos(
                 "Equipe inválida."
             )
 
+        # Se o usuário digitou/selecionou uma equipe que ainda não está
+        # nas opções fixas, adiciona dinamicamente para manter a UI consistente.
+        try:
+            opcoes_atuais = {
+                str(op.key)
+                for op in (dropdown_equipes.options or [])
+            }
+
+            if equipe_id not in opcoes_atuais:
+                dropdown_equipes.options.append(
+                    ft.dropdown.Option(
+                        key=equipe_id,
+                        text=f"Equipe {equipe_id}",
+                    )
+                )
+
+        except Exception:
+            pass
+
         return equipe_id
 
     def validar_meta_padrao() -> int:
@@ -1592,6 +1733,8 @@ def aba_sior_distribuicao_processos(
             page.update()
             return
 
+        salvar_preferencias(equipe_id)
+
         limpar()
 
         dropdown_equipes.value = equipe_id
@@ -1599,6 +1742,10 @@ def aba_sior_distribuicao_processos(
         set_processando(
             True,
             "Preparando carregamento da equipe...",
+        )
+
+        adicionar_log(
+            f"💾 Preferência de equipe atualizada para {equipe_id}."
         )
 
         def task():
